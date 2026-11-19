@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="vendor/katex.min.css">
+<script type="importmap">{"imports":{"onnxruntime-web":"./vendor/ort/ort.wasm.bundle.min.mjs"}}</script>
 <style>
 /* VOICE: a quiet instrument — the notes are loud, the chrome whispers.
    IDEA: a cross-hatched screen you pin formula cards onto, like a lab notebook under glass.
@@ -212,6 +213,9 @@ input[type=range]{accent-color:var(--accent);flex:1}
 .padprev .katex-display{margin:0}
 .code-in{font-family:var(--mono);font-size:14px}
 .altb{font-size:15px}
+.padstat{min-height:20px;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.padstat .spin{width:14px;height:14px;border-width:2px}
+.padstat.err{color:var(--danger)}
 /* export dialog */
 .modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
 .modecard{display:flex;gap:12px;align-items:flex-start;text-align:left;padding:14px;border-radius:12px;border:1.5px solid var(--line);background:var(--panel);cursor:pointer;color:var(--fg)}
@@ -302,6 +306,8 @@ input[type=range]{accent-color:var(--accent);flex:1}
   <symbol id="i-eraser" viewBox="0 0 24 24"><path d="M8.5 20H20M4.6 15.4l9.8-9.8a2 2 0 012.8 0l2.2 2.2a2 2 0 010 2.8L12 18H8.2a2 2 0 01-1.4-.6l-2.2-2.2a2 2 0 010-2.8zM9 11l6 6"/></symbol>
   <symbol id="i-tex" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5M8.5 12h4M10.5 12v5M13.5 13l3 4M16.5 13l-3 4"/></symbol>
   <symbol id="i-screen" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M7.5 8.5v3M6 10h3M14 9h4M14 12h3"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></symbol>
+  <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></symbol>
   <symbol id="i-alignl" viewBox="0 0 24 24"><path d="M4 4v16M8 8h10M8 16h6"/></symbol>
   <symbol id="i-alignt" viewBox="0 0 24 24"><path d="M4 4h16M8 8v10M16 8v6"/></symbol>
   <symbol id="i-distv" viewBox="0 0 24 24"><path d="M4 4h16M4 20h16M8 10h8v4H8z"/></symbol>
@@ -356,6 +362,7 @@ input[type=range]{accent-color:var(--accent);flex:1}
 
 <div class="ui bl">
   <button class="btn sm" id="surfBtn" aria-label="Workspace colour"><span class="swatch-btn" id="surfSw"></span><span class="lbl-wide">Colour</span></button>
+  <button class="ibtn" id="setBtn" aria-label="Recognition settings" title="Recognition settings"><svg class="i"><use href="#i-gear"/></svg></button>
   <button class="ibtn" id="helpBtn" aria-label="Keyboard shortcuts" title="Shortcuts"><svg class="i"><use href="#i-help"/></svg></button>
 </div>
 
@@ -638,7 +645,7 @@ const editing = t => t && (t.closest?.('input,textarea,[contenteditable=true],ma
 addEventListener('keydown', e => {
   if (e.key === 'Escape') { if (!$('#scrim').hidden && !importBusy) return closeModal(); if (!$('#pop').hidden) return closePop(); if (editing(document.activeElement)) { document.activeElement.blur?.(); return; } setSel([]); setTool('select'); return; }
   if (pad && !$('#scrim').hidden) {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !editing(e.target)) { e.preventDefault(); pad.strokes.pop(); pad.redraw(); return; }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !editing(e.target)) { e.preventDefault(); pad.strokes.pop(); pad.redraw(); strokesChanged(); return; }
     if (e.key === 'Enter') { e.preventDefault(); if (e.target.id === 'padTex' || (!$('#padRes').hidden && !editing(e.target) && pad.latex)) padInsert(); else padRecognize(); return; }
   }
   if (editing(e.target) || !$('#scrim').hidden) return;
@@ -926,6 +933,7 @@ function helpMenu(){
 $('#pop').addEventListener('click', e => {
   const t = e.target.closest('button'); if (!t) return;
   if (t.dataset.ws) { closePop(); return switchWs(t.dataset.ws); }
+  if (t.dataset.hw) { setPref('hw', t.dataset.hw); setPressed(t, '[data-hw]'); return; }
   if (t.dataset.bg) { W().bg = t.dataset.bg; applySurface(); persist(); setPressed(t, '[data-bg]'); return; }
   if (t.dataset.font) { W().font = t.dataset.font; applySurface(); persist(); setPressed(t, '[data-font]'); setTimeout(() => W().blocks.forEach(drawBlock), 50); return; }
   const m = t.dataset.m; if (!m) return; closePop();
@@ -937,6 +945,7 @@ $('#pop').addEventListener('click', e => {
      copymd: async () => { try { await navigator.clipboard.writeText(toMarkdown()); toast('Markdown copied'); } catch { showText('Markdown', toMarkdown()); } } })[m]?.();
 });
 $('#pop').addEventListener('input', e => { if (e.target.id === 'bgPick') { W().bg = e.target.value; applySurface(); persist(); } });
+$('#pop').addEventListener('change', e => { if (e.target.id === 'prefPhotos') setPref('photos', e.target.checked); });
 
 function switchWs(id){
   commit(); S.activeId = id; sel.clear();
@@ -1050,7 +1059,7 @@ function addImpFiles(files){
   drawImport();
 }
 function drawImport(){
-  const can = !!ai.mode;
+  const can = !!ai.mode && prefs.photos;
   openModal(`<div class="mh"><div class="grow"><h2>Import notes</h2><p style="margin-top:4px">A photo of a notebook page, handout or a school board becomes text and LaTeX blocks laid out like the original.</p></div><button class="ibtn" data-c="x" aria-label="Close">${icon('x')}</button></div>
     ${imp.files.length ? `<div class="thumbs">${imp.files.map((f, i) => `<div class="thumb"><img src="${f.url}" alt=""><button data-c="rm" data-n="${i}" aria-label="Remove">${icon('x')}</button></div>`).join('')}<div class="drop" data-c="pick" style="aspect-ratio:4/3;padding:8px">${icon('plus')}<span style="font-size:13px">Add photo</span></div></div>`
       : `<div class="drop" data-c="pick" id="dropZ">${icon('scan', 'style="width:28px;height:28px"')}<strong>Drop photos here or choose files</strong><span style="font-size:13px">JPG, PNG or WebP · you can also paste an image anywhere</span></div>`}
@@ -1059,7 +1068,7 @@ function drawImport(){
       <div class="row"><label style="width:auto;color:var(--muted);font-size:13px">Reading</label><div class="seg"><button data-tier="default" aria-pressed="${imp.tier === 'default'}">Standard</button><button data-tier="complex" aria-pressed="${imp.tier === 'complex'}">Careful · slower</button></div></div>
       <input class="field" id="impHint" placeholder="What's on it? Optional — e.g. “Analysis II lecture, German”" value="${esc(imp.hint)}">
     </div>
-    ${aiNoteHtml(true)}
+    ${ai.mode && !prefs.photos ? '<div class="note">Sending photos to Claude is switched off (gear button, bottom left), so photos are placed on the workspace as they are. Use <b>Draw</b> to write formulas on this device.</div>' : aiNoteHtml(true)}
     <div class="mf"><button class="btn outline" data-c="x">Cancel</button>
       ${can ? '' : `<button class="btn outline" data-c="place" ${imp.files.length ? '' : 'disabled'}>Place photos only</button>`}
       <button class="btn primary" data-c="go" ${imp.files.length && can ? '' : 'disabled'}>${icon('scan')}Convert to LaTeX</button></div>`, 'import');
@@ -1104,7 +1113,7 @@ async function placePhotosOnly(){
   closeModal(); commit(); setSel(ids); requestAnimationFrame(() => fit(ids.map(blk)));
 }
 async function runImport(){
-  if (!ai.mode || !imp.files.length) return;
+  if (!ai.mode || !prefs.photos || !imp.files.length) return;
   importBusy = true;
   const regs = await layoutRegions(); const added = [], made = [];
   $('#modal').innerHTML = `<div class="mh"><h2 class="grow">Reading your notes</h2></div>
@@ -1212,6 +1221,77 @@ async function ask(task, { images, hint = '', tier = 'default', signal, onText }
   throw { code: 'unavailable' };
 }
 
+/* ---------- recognition preferences + on-device engine (ink-on / CoMER via ONNX Runtime Web) ---------- */
+const prefs = { hw: 'local', photos: true };
+try { Object.assign(prefs, JSON.parse(localStorage.getItem('symvolo.prefs') || '{}')); } catch {}
+function setPref(k, v){ prefs[k] = v; try { localStorage.setItem('symvolo.prefs', JSON.stringify(prefs)); } catch {} }
+const padEngine = () => (prefs.hw === 'claude' && ai.mode) ? 'claude' : 'local';
+let inkP = null;
+function loadInk(){
+  if (inkP) return inkP;
+  inkP = (async () => {
+    const ort = await import('onnxruntime-web');
+    try { ort.env.wasm.wasmPaths = new URL('vendor/ort/', location.href).href; ort.env.wasm.numThreads = globalThis.crossOriginIsolated ? Math.min(navigator.hardwareConcurrency || 4, 4) : 1; } catch {}
+    const mod = await import('./vendor/inkon/core.js');
+    const base = new URL('vendor/models/comer/', location.href).href;
+    const vocab = await mod.loadVocab(base + 'vocab.json');
+    // Model files are *.onnx on a normal server; some hosts only serve them as *.onnx.wasm.
+    let ext = '.onnx';
+    try { const h = await fetch(base + 'encoder_int8.onnx', { method: 'HEAD' }); if (!h.ok) ext = '.onnx.wasm'; } catch { ext = '.onnx.wasm'; }
+    const engine = new mod.InferenceEngine({ encoderUrl: base + 'encoder_int8' + ext, decoderUrl: base + 'decoder_int8' + ext, beamWidth: 3, executionProvider: 'wasm' });
+    await engine.init();
+    return { mod, vocab, engine };
+  })();
+  inkP.catch(e => { console.error('On-device recognizer failed to start', e); inkP = null; });
+  return inkP;
+}
+function tidyTex(s){
+  let out = '';
+  for (const tok of String(s || '').trim().split(/\s+/).filter(Boolean)) { if (out && /\\[a-zA-Z]+$/.test(out) && /^[a-zA-Z]/.test(tok)) out += ' '; out += tok; }
+  return out;
+}
+async function localRecognize(strokes){
+  const k = await loadInk();
+  const st = strokes.map(x => ({ points: x.pts.map(([px, py]) => ({ x: px, y: py })), lineWidth: 3 }));
+  if (!k.mod.isStrokeMeaningful(st)) return { latex: '' };
+  const r = await k.engine.recognize(k.mod.preprocessStrokes(st), k.vocab, 'auto');
+  return { latex: tidyTex(r.latex), ms: r.totalMs };
+}
+function setPadStatus(text, kind = ''){ const el = $('#padStat'); if (el) { el.className = 'padstat ' + kind; el.innerHTML = kind === 'busy' ? `<span class="spin"></span>${esc(text)}` : esc(text); } }
+let localTimer = 0, localRunning = false, localAgain = false;
+function strokesChanged(){
+  if (!pad || padEngine() !== 'local') return;
+  clearTimeout(localTimer);
+  if (!pad.strokes.length) { $('#padRes').hidden = true; $('#padIns').disabled = true; setPadStatus(''); return; }
+  localTimer = setTimeout(runLocal, 350);
+}
+async function runLocal(){
+  if (!pad) return;
+  if (localRunning) { localAgain = true; return; }
+  const p = pad; if (!p.strokes.length) { setPadStatus('Draw something first'); return; }
+  localRunning = true; localAgain = false;
+  setPadStatus(inkP ? 'Reading…' : 'Loading the on-device recognizer…', 'busy');
+  try {
+    const r = await localRecognize(p.strokes);
+    if (pad !== p) return;
+    if (!r.latex) setPadStatus('Nothing recognisable yet — keep drawing');
+    else { padShow(r.latex, []); setPadStatus(`Read on this device in ${Math.max(1, Math.round(r.ms))} ms — check it, and edit the LaTeX if a symbol is wrong.`); }
+  } catch (e) {
+    if (pad === p) setPadStatus(`The on-device recognizer couldn't start in this browser${ai.mode ? ' — switch to Claude above.' : '.'}`, 'err');
+  } finally {
+    localRunning = false;
+    if (localAgain && pad === p) { localAgain = false; runLocal(); }
+  }
+}
+function setMenu(){
+  const can = !!ai.mode;
+  openPop($('#setBtn'), `<div class="lbl">Drawn formulas</div>
+    <div style="padding:2px 10px 6px"><div class="seg wide"><button data-hw="local" aria-pressed="${padEngine() === 'local'}">${icon('chip')}On device</button><button data-hw="claude" aria-pressed="${padEngine() === 'claude'}" ${can ? '' : 'disabled'}>Claude</button></div></div>
+    <div class="hint" style="padding:0 10px 8px">On device is private and works offline, but makes more mistakes and knows about 110 symbols. Claude is more accurate and sends the drawing to Claude.</div>
+    <hr><div class="lbl">Photos of notes and boards</div>
+    <label class="check" style="padding:4px 10px 6px"><input type="checkbox" id="prefPhotos" ${prefs.photos ? 'checked' : ''} ${can ? '' : 'disabled'}>Send photos to Claude to convert them</label>
+    <div class="hint" style="padding:0 10px 8px">${can ? 'Whole pages need Claude — the on-device model reads one drawn formula at a time. When off, photos are placed on the workspace as they are.' : "Claude isn't available here, so photos are placed on the workspace as they are."}</div>`);
+}
 /* ---------- handwriting pad ---------- */
 let pad = null;
 function drawStrokes(g, strokes, color){
@@ -1233,9 +1313,11 @@ function openPad(target){
   pad = { target, strokes: [], mode: 'pen', latex: '', alts: [], ctl: null, busy: false };
   const insLabel = target.kind === 'replace' ? 'Replace formula' : target.kind === 'inline' ? 'Insert in text' : 'Add to workspace';
   openModal(`<div class="mh"><div class="grow"><h2>Handwrite a formula</h2><p style="margin-top:4px">Draw a symbol or an equation with your mouse, pen or finger — Symvolo turns it into LaTeX.</p></div><button class="ibtn" data-p="x" aria-label="Close">${icon('x')}</button></div>
-    <div class="padbar"><div class="seg"><button data-p="pen" aria-pressed="true">${icon('pen')}Pen</button><button data-p="erase" aria-pressed="false">${icon('eraser')}Eraser</button></div><span class="grow"></span>
+    <div class="padbar"><div class="seg"><button data-p="pen" aria-pressed="true">${icon('pen')}Pen</button><button data-p="erase" aria-pressed="false" title="Touch a stroke to remove it">${icon('eraser')}Eraser</button></div><span class="grow"></span>
+      <div class="seg" id="padEng" ${ai.mode ? '' : 'hidden'}><button data-eng="local" aria-pressed="${padEngine() === 'local'}" title="Private, works offline">${icon('chip')}On device</button><button data-eng="claude" aria-pressed="${padEngine() === 'claude'}" title="More accurate; sends the drawing to Claude">Claude</button></div>
       <button class="ibtn" data-p="undo" aria-label="Undo stroke" title="Undo stroke (Ctrl+Z)">${icon('undo')}</button><button class="ibtn" data-p="clear" aria-label="Clear drawing" title="Clear">${icon('trash')}</button></div>
     <div class="padwrap"><canvas id="padC" aria-label="Drawing area"></canvas><div class="padph" id="padPh">Draw here — larger is easier to read</div></div>
+    <div class="padstat" id="padStat"></div>
     <div id="padAI"></div>
     <div class="padres" id="padRes" hidden><div class="padprev" id="padPrev"></div>
       <input class="field code-in" id="padTex" spellcheck="false" aria-label="LaTeX — edit if needed">
@@ -1249,25 +1331,42 @@ function openPad(target){
   pad.redraw = redraw;
   let cur = null;
   const pt = e => { const r = c.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
-  c.onpointerdown = e => { e.preventDefault(); c.setPointerCapture(e.pointerId); cur = { mode: pad.mode, w: pad.mode === 'erase' ? 24 : (e.pointerType === 'pen' ? 2.8 : 3.2), pts: [pt(e)] }; pad.strokes.push(cur); redraw(); };
-  c.onpointermove = e => { if (!cur) return; for (const ce of (e.getCoalescedEvents?.() || [e])) cur.pts.push(pt(ce)); redraw(); };
-  c.onpointerup = c.onpointercancel = () => { cur = null; };
+  let erasing = false, erased = false;
+  const eraseAt = ([x, y]) => { const n = pad.strokes.length; pad.strokes = pad.strokes.filter(st => !st.pts.some(([px, py]) => (px - x) ** 2 + (py - y) ** 2 < 196)); if (pad.strokes.length !== n) { erased = true; redraw(); } };
+  c.onpointerdown = e => {
+    e.preventDefault(); c.setPointerCapture(e.pointerId);
+    if (pad.mode === 'erase') { erasing = true; erased = false; eraseAt(pt(e)); return; }
+    cur = { mode: 'pen', w: e.pointerType === 'pen' ? 2.8 : 3.2, pts: [pt(e)] }; pad.strokes.push(cur); redraw();
+  };
+  c.onpointermove = e => {
+    if (erasing) { for (const ce of (e.getCoalescedEvents?.() || [e])) eraseAt(pt(ce)); return; }
+    if (!cur) return; for (const ce of (e.getCoalescedEvents?.() || [e])) cur.pts.push(pt(ce)); redraw();
+  };
+  c.onpointerup = c.onpointercancel = () => { const changed = !!cur || erased; cur = null; erasing = false; erased = false; if (changed) strokesChanged(); };
   const m = $('#modal');
   m.onclick = e => {
-    const t = e.target.closest('[data-p],[data-alt]'); if (!t) return;
+    const t = e.target.closest('[data-p],[data-alt],[data-eng]'); if (!t) return;
+    if (t.dataset.eng) { setPref('hw', t.dataset.eng); setPressed(t, '[data-eng]'); padAI(); if (t.dataset.eng === 'local') strokesChanged(); else setPadStatus(''); return; }
     if (t.dataset.alt != null) { const a = pad.alts[+t.dataset.alt]; pad.alts[+t.dataset.alt] = pad.latex; padShow(a, pad.alts); return; }
     const a = t.dataset.p;
     if (a === 'x') closeModal();
     else if (a === 'pen' || a === 'erase') { pad.mode = a; setPressed(t, '[data-p=pen],[data-p=erase]'); }
-    else if (a === 'undo') { pad.strokes.pop(); redraw(); }
-    else if (a === 'clear') { pad.strokes = []; redraw(); }
+    else if (a === 'undo') { pad.strokes.pop(); redraw(); strokesChanged(); }
+    else if (a === 'clear') { pad.strokes = []; redraw(); strokesChanged(); }
     else if (a === 'rec') padRecognize();
     else if (a === 'ins') padInsert();
   };
   $('#padTex').oninput = e => { pad.latex = e.target.value; $('#padPrev').innerHTML = tex(pad.latex || '\\square', true); $('#padIns').disabled = !pad.latex.trim(); };
   padAI();
+  if (padEngine() === 'local') { setPadStatus('Loading the on-device recognizer…', 'busy'); loadInk().then(() => { if (pad && !pad.strokes.length) setPadStatus('On-device recognizer ready — it reads as you draw, offline.'); }, () => {}); }
 }
-function padAI(){ const box = $('#padAI'); if (!box || !pad) return; box.innerHTML = aiNoteHtml(false); bindCode(box); $('#padRec').disabled = !ai.mode; }
+function padAI(){
+  const box = $('#padAI'); if (!box || !pad) return;
+  const local = padEngine() === 'local';
+  box.innerHTML = local ? '' : aiNoteHtml(false); bindCode(box);
+  $('#padRec').disabled = !local && !ai.mode;
+  const eng = $('#padEng'); if (eng) eng.hidden = !ai.mode;
+}
 async function padBlob(){
   const pens = pad.strokes.filter(s => s.mode === 'pen'); if (!pens.length) return null;
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -1294,7 +1393,9 @@ function padShow(latex, alts){
   $('#padIns').disabled = !latex.trim();
 }
 async function padRecognize(){
-  if (!pad || pad.busy || !ai.mode) return;
+  if (!pad) return;
+  if (padEngine() === 'local') { runLocal(); return; }
+  if (pad.busy || !ai.mode) return;
   const blob = await padBlob(); if (!blob) { toast('Draw something first'); return; }
   const btn = $('#padRec'); pad.busy = true; btn.disabled = true; btn.innerHTML = '<span class="spin" style="width:16px;height:16px;border-width:2px"></span>Reading…';
   const p = pad; p.ctl = new AbortController();
@@ -1520,6 +1621,7 @@ $('#saveBtn').onclick = () => $('#pop').hidden || $('#pop')._anchor !== $('#save
 $('#wsMenuBtn').onclick = () => $('#pop').hidden ? wsMenu() : closePop();
 $('#surfBtn').onclick = () => $('#pop').hidden ? surfMenu() : closePop();
 $('#helpBtn').onclick = () => $('#pop').hidden ? helpMenu() : closePop();
+$('#setBtn').onclick = () => $('#pop').hidden ? setMenu() : closePop();
 $('#zoomIn').onclick = () => zoomStep(1.2); $('#zoomOut').onclick = () => zoomStep(1 / 1.2);
 $('#zoomVal').onclick = () => zoomAt(1, innerWidth / 2, innerHeight / 2);
 $('#fitBtn').onclick = () => fit();
