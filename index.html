@@ -1,0 +1,1547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Symvolo — math notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="vendor/katex.min.css">
+<style>
+/* VOICE: a quiet instrument — the notes are loud, the chrome whispers.
+   IDEA: a cross-hatched screen you pin formula cards onto, like a lab notebook under glass.
+   PICTURE: the full-screen workspace of small crosses; blocks of real LaTeX floating on it.
+   COLOUR and TYPE: surface chosen by the user, chrome follows it light/dark; cobalt accent; Geist UI, KaTeX serif for notes.
+   LAYOUT: floating pill bars at the four corners, tool rail on the left, inspector sheet on the right. */
+:root{
+  --G:24px;--accent:#2f55e4;--accent-soft:#e7ecff;--accent-fg:#fff;
+  --panel:#fff;--panel-2:#f4f5f7;--panel-3:#eaecf0;--line:#e2e4e9;--line-strong:#cdd1d8;
+  --fg:#14161b;--muted:#5b616d;--subtle:#8a909b;--warn:#c27a0e;--warn-soft:#fff4df;--danger:#d93a3f;
+  --shadow:0 1px 2px rgba(15,20,35,.06),0 10px 30px rgba(15,20,35,.10);
+  --surface:#f6f6f3;--note-ink:#17191e;--card:#ffffff;--mark:rgba(255,214,10,.38);
+  --note-font:KaTeX_Main,"STIX Two Text","Times New Roman",serif;
+  --ui:"Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"Geist Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+:root[data-chrome=dark]{
+  --accent:#7f97ff;--accent-soft:#222a4a;--accent-fg:#0b0e1c;
+  --panel:#17181d;--panel-2:#1e2026;--panel-3:#272a32;--line:#2b2e36;--line-strong:#3b3f4a;
+  --fg:#f1f2f5;--muted:#a5a9b4;--subtle:#767b87;--warn:#f0b046;--warn-soft:#3a2d14;--danger:#ff6b6f;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 34px rgba(0,0,0,.45);
+  --note-ink:#eef0f4;--card:rgba(255,255,255,.07);--mark:rgba(255,214,10,.22);
+  color-scheme:dark;
+}
+:root[data-font=sans]{--note-font:"Geist",ui-sans-serif,system-ui,sans-serif}
+*{box-sizing:border-box;min-width:0}
+html,body{height:100%;margin:0;overflow:hidden}
+body{font:14px/1.45 var(--ui);color:var(--fg);background:var(--surface);-webkit-font-smoothing:antialiased;touch-action:none}
+button,input,select,textarea{font:inherit;color:inherit}
+[hidden]{display:none!important}
+svg.i{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* stage */
+#stage{position:fixed;inset:0;overflow:hidden;background-color:var(--surface);cursor:default}
+#stage[data-tool=pan],#stage.panning{cursor:grab}#stage.panning:active{cursor:grabbing}
+#stage[data-tool=text],#stage[data-tool=math]{cursor:crosshair}
+#world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+#marquee{position:absolute;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);border-radius:4px;pointer-events:none}
+
+/* blocks */
+.blk{position:absolute;padding:6px 10px;border-radius:8px;color:var(--note-ink);font-family:var(--note-font);font-size:calc(19px * var(--sc,1));line-height:1.5;user-select:none;-webkit-user-select:none;cursor:grab;outline:1.5px solid transparent;outline-offset:2px;transition:outline-color .12s}
+.blk:hover{outline-color:color-mix(in srgb,var(--accent) 35%,transparent)}
+.blk.sel{outline-color:var(--accent)}
+.blk.locked{cursor:default}
+.blk.k-math{white-space:nowrap}
+.blk.f-card{background:var(--card);box-shadow:0 1px 2px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.06)}
+.blk.f-mark{background:var(--mark)}
+.blk.unsure{outline:1.5px dashed var(--warn)}
+.blk.unsure.sel{outline-style:solid}
+.blk .body p{margin:0 0 .35em}.blk .body p:last-child{margin-bottom:0}
+.blk .body .h1{font-size:1.7em;font-weight:700;line-height:1.2;margin:0 0 .25em}
+.blk .body .h2{font-size:1.32em;font-weight:700;line-height:1.25;margin:0 0 .2em}
+.blk .body .h3{font-size:1.12em;font-weight:700;margin:0 0 .15em}
+.blk .body ul,.blk .body ol{margin:0 0 .35em;padding-left:1.25em}
+.blk .body .gap{height:.5em}
+.blk .body code{font-family:var(--mono);font-size:.82em;background:color-mix(in srgb,currentColor 10%,transparent);padding:.05em .3em;border-radius:4px}
+.blk .body mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 .1em}
+.blk .body .katex-display{margin:.2em 0}
+.blk .body .err{color:var(--danger);font-family:var(--mono);font-size:.75em;white-space:pre-wrap}
+.blk.k-image{padding:0;line-height:0}
+.blk.k-image img{width:100%;height:auto;border-radius:8px;display:block;pointer-events:none}
+.blk .rz{position:absolute;right:-7px;bottom:-7px;width:14px;height:14px;border-radius:4px;background:var(--panel);border:2px solid var(--accent);cursor:nwse-resize;display:none}
+.blk.sel:not(.locked) .rz{display:block}
+.blk .lockdot{position:absolute;top:-9px;right:-9px;width:18px;height:18px;border-radius:50%;background:var(--panel);border:1px solid var(--line-strong);display:none;place-items:center;color:var(--muted)}
+.blk.locked.sel .lockdot{display:grid}
+.blk .lockdot svg{width:11px;height:11px}
+
+/* floating chrome */
+.ui{position:fixed;z-index:20;display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:5px}
+.tl{top:14px;left:14px;padding-right:8px}
+.tr{top:14px;right:14px}
+.rail{left:14px;top:50%;transform:translateY(-50%);flex-direction:column}
+.bl{left:14px;bottom:14px}
+.br{right:14px;bottom:14px}
+.sep{width:1px;align-self:stretch;background:var(--line);margin:4px 2px}
+.rail .sep{width:auto;height:1px;margin:2px 4px}
+.ibtn{width:38px;height:38px;display:grid;place-items:center;border:0;border-radius:9px;background:transparent;color:var(--muted);cursor:pointer;position:relative}
+.ibtn:hover{background:var(--panel-2);color:var(--fg)}
+.ibtn[aria-pressed=true]{background:var(--accent-soft);color:var(--accent)}
+.ibtn:disabled{opacity:.35;cursor:default;background:transparent}
+.btn{height:38px;display:inline-flex;align-items:center;gap:8px;padding:0 13px;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--fg);font-weight:500;font-size:13.5px;cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--panel-2)}
+.btn.primary{background:var(--accent);color:var(--accent-fg)}
+.btn.primary:hover{background:color-mix(in srgb,var(--accent) 88%,#000)}
+.btn.outline{border-color:var(--line-strong)}
+.btn.danger{color:var(--danger)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.sm{height:32px;padding:0 10px;font-size:13px}
+.logo{display:flex;align-items:center;gap:9px;padding:0 6px 0 2px}
+.logo-mark{width:30px;height:30px;border-radius:8px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center}
+.logo-mark svg{width:16px;height:16px;stroke-width:2.4}
+.logo-word{font-weight:650;font-size:16px;letter-spacing:-.02em}
+#wsName{width:clamp(110px,18vw,240px);height:34px;border:1px solid transparent;border-radius:8px;background:transparent;padding:0 9px;font-weight:500;font-size:14px;text-overflow:ellipsis}
+#wsName:hover{border-color:var(--line)}#wsName:focus{border-color:var(--accent);outline:none;background:var(--panel-2)}
+.zoomv{font:500 12.5px var(--mono);color:var(--muted);min-width:52px;text-align:center;border:0;background:none;height:38px;border-radius:8px;cursor:pointer}
+.zoomv:hover{background:var(--panel-2);color:var(--fg)}
+.swatch-btn{width:26px;height:26px;border-radius:7px;border:1px solid var(--line-strong);background:var(--surface)}
+.tip{position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%);background:var(--fg);color:var(--panel);font-size:12px;padding:4px 8px;border-radius:6px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .12s}
+.rail .ibtn:hover .tip{opacity:1}
+.tip kbd{font-family:var(--mono);opacity:.65;margin-left:6px}
+
+/* popovers */
+.pop{position:fixed;z-index:40;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:6px;min-width:240px;max-width:min(340px,calc(100vw - 24px))}
+.pop .mi{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border:0;border-radius:8px;background:none;text-align:left;cursor:pointer;color:var(--fg)}
+.pop .mi:hover{background:var(--panel-2)}
+.pop .mi small{display:block;color:var(--subtle);font-size:12px;margin-top:1px}
+.pop .mi .meta{margin-left:auto;font:12px var(--mono);color:var(--subtle)}
+.pop .mi[aria-current=true]{background:var(--accent-soft)}
+.pop hr{border:0;border-top:1px solid var(--line);margin:5px 4px}
+.pop .lbl{font-size:12px;color:var(--subtle);padding:6px 10px 4px}
+.swatches{display:flex;flex-wrap:wrap;gap:8px;padding:4px 10px 10px}
+.sw{width:34px;height:34px;border-radius:9px;border:1px solid var(--line-strong);cursor:pointer;position:relative;padding:0}
+.sw[aria-pressed=true]{outline:2px solid var(--accent);outline-offset:2px}
+.sw input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.sw.custom{background:conic-gradient(#e5484d,#f08c2e,#f5d90a,#12a594,#4a6cf7,#8e6bf0,#e5484d)}
+
+/* inspector */
+#insp{position:fixed;z-index:30;right:14px;top:68px;bottom:68px;width:344px;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+#insp .ih{display:flex;align-items:center;gap:8px;padding:10px 10px 10px 14px;border-bottom:1px solid var(--line)}
+#insp .ib{overflow:auto;padding:14px;display:flex;flex-direction:column;gap:14px;overscroll-behavior:contain}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:999px;background:var(--panel-3);font-size:12px;font-weight:600;color:var(--muted)}
+.chip.k-math{background:var(--accent-soft);color:var(--accent)}
+.grow{flex:1}
+.sec{display:flex;flex-direction:column;gap:8px}
+.sec h4{margin:0;font-size:12.5px;font-weight:600;color:var(--muted)}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.row>label{width:84px;font-size:13px;color:var(--muted)}
+.row>label.check{width:auto;font-size:14px;color:var(--fg)}
+.seg{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:2px;gap:2px}
+.seg button{height:30px;min-width:34px;padding:0 10px;border:0;border-radius:7px;background:none;color:var(--muted);font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.seg button[aria-pressed=true]{background:var(--panel);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.seg.wide{display:flex}.seg.wide button{flex:1;justify-content:center}
+.ink{width:26px;height:26px;border-radius:50%;border:1px solid var(--line-strong);cursor:pointer;padding:0;display:grid;place-items:center;font-size:10px;color:var(--muted)}
+.ink[aria-pressed=true]{outline:2px solid var(--accent);outline-offset:2px}
+.code{width:100%;min-height:150px;resize:vertical;border:1px solid var(--line);border-radius:10px;background:var(--panel-2);padding:10px 12px;font:13px/1.55 var(--mono);color:var(--fg);tab-size:2}
+.code:focus,.rich:focus-within{outline:none;border-color:var(--accent)}
+.rich{min-height:150px;max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel-2);padding:10px 12px;font:17px/1.6 var(--note-font);white-space:pre-wrap;word-break:break-word;outline:none;cursor:text}
+.rich .mfw{display:inline-block;vertical-align:middle;margin:0 2px}
+.rich .mfw.disp{display:block;margin:4px 0}
+.rich math-field,.mfmain{font-size:20px;background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:2px 6px;color:var(--fg);--caret-color:var(--accent);--selection-background-color:var(--accent-soft);--primary:var(--accent)}
+.rich math-field{display:inline-block;min-width:40px}
+.rich math-field::part(virtual-keyboard-toggle),.rich math-field::part(menu-toggle){display:none}
+.mfmain{display:block;width:100%;font-size:26px;padding:14px 12px;border-radius:10px;background:var(--panel-2);min-height:80px}
+.mfmain:focus-within{border-color:var(--accent)}
+.hint{font-size:12.5px;color:var(--subtle);line-height:1.5}
+.hint kbd,.keys kbd{font:500 11.5px var(--mono);background:var(--panel-3);border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 5px;color:var(--muted)}
+.banner{display:flex;gap:10px;padding:10px 12px;border-radius:10px;background:var(--warn-soft);color:var(--fg);font-size:13px;align-items:flex-start}
+.banner svg{color:var(--warn);margin-top:1px}
+.tb{display:flex;gap:6px;flex-wrap:wrap}
+input[type=range]{accent-color:var(--accent);flex:1}
+.loading{font-size:13px;color:var(--subtle);padding:8px 0}
+
+/* modal */
+.scrim{position:fixed;inset:0;z-index:60;background:rgba(10,12,18,.42);display:grid;place-items:center;padding:16px}
+.modal{width:min(620px,100%);max-height:calc(100vh - 32px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:20px;display:flex;flex-direction:column;gap:16px}
+.modal h2{margin:0;font-size:20px;font-weight:650;letter-spacing:-.01em}
+.modal p{margin:0;color:var(--muted)}
+.mh{display:flex;align-items:flex-start;gap:12px}
+.drop{border:1.5px dashed var(--line-strong);border-radius:12px;padding:26px 16px;display:grid;place-items:center;text-align:center;gap:8px;color:var(--muted);cursor:pointer;background:var(--panel-2)}
+.drop.over{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.drop strong{color:var(--fg);font-weight:600}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}
+.thumb{position:relative;aspect-ratio:4/3;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--panel-2)}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.thumb button{position:absolute;top:5px;right:5px;width:26px;height:26px;border-radius:7px;border:0;background:rgba(0,0,0,.6);color:#fff;display:grid;place-items:center;cursor:pointer}
+.thumb button svg{width:14px;height:14px}
+.opts{display:grid;gap:10px}
+.check{display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer}
+.check input{width:18px;height:18px;accent-color:var(--accent)}
+.field{width:100%;height:40px;border:1px solid var(--line);border-radius:9px;background:var(--panel-2);padding:0 12px;font-size:15px}
+.field:focus{outline:none;border-color:var(--accent)}
+.mf{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.progress{display:flex;gap:14px;align-items:center;padding:14px;border-radius:12px;background:var(--panel-2)}
+.spin{width:22px;height:22px;border-radius:50%;border:2.5px solid var(--line-strong);border-top-color:var(--accent);animation:spin .8s linear infinite;flex:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.progress b{display:block;font-weight:600}
+.progress span{color:var(--muted);font-size:13px}
+.note{font-size:13px;color:var(--muted);padding:10px 12px;border-radius:10px;background:var(--panel-2)}
+
+/* empty state & toast */
+#empty{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none;z-index:5}
+#empty .card{pointer-events:auto;text-align:center;display:grid;gap:12px;justify-items:center;padding:28px 30px;max-width:420px;background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+#empty h3{margin:0;font-size:19px;font-weight:650}
+#empty p{margin:0;color:var(--muted)}
+#empty .big{width:52px;height:52px;border-radius:14px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center}
+#empty .big svg{width:24px;height:24px}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);z-index:80;background:var(--fg);color:var(--panel);padding:10px 16px;border-radius:10px;font-size:13.5px;font-weight:500;opacity:0;pointer-events:none;transition:.2s;max-width:calc(100vw - 32px)}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;padding:8px 10px;font-size:13px;color:var(--muted)}
+.keys span:nth-child(odd){text-align:right;white-space:nowrap}
+
+
+/* handwriting pad */
+.modal.wide{width:min(780px,100%)}
+.padbar{display:flex;align-items:center;gap:6px}
+.padwrap{position:relative;height:clamp(220px,38vh,340px);border:1px solid var(--line);border-radius:12px;background-color:var(--panel-2);background-image:var(--pad-cross);background-size:24px 24px;overflow:hidden}
+.padwrap canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.padph{position:absolute;inset:0;display:grid;place-items:center;color:var(--subtle);pointer-events:none;font-size:15px}
+.padres{display:grid;gap:10px}
+.padprev{min-height:64px;display:grid;place-items:center;padding:10px;border-radius:12px;background:var(--panel-2);font-size:22px;overflow-x:auto;color:var(--fg)}
+.padprev .katex-display{margin:0}
+.code-in{font-family:var(--mono);font-size:14px}
+.altb{font-size:15px}
+/* export dialog */
+.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.modecard{display:flex;gap:12px;align-items:flex-start;text-align:left;padding:14px;border-radius:12px;border:1.5px solid var(--line);background:var(--panel);cursor:pointer;color:var(--fg)}
+.modecard svg{width:22px;height:22px;color:var(--muted);margin-top:1px}
+.modecard b{display:block;font-weight:600;margin-bottom:3px}
+.modecard small{display:block;color:var(--muted);font-size:13px;line-height:1.45}
+.modecard[aria-pressed=true]{border-color:var(--accent);background:var(--accent-soft)}
+.modecard[aria-pressed=true] svg{color:var(--accent)}
+.two{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:10px}
+@media(max-width:600px){.two{grid-template-columns:minmax(0,1fr)}}
+.lprev{display:flex;gap:12px;overflow-x:auto;padding:6px 2px 10px;min-height:120px;align-items:flex-start}
+.pv{flex:none;width:222px;height:314px;overflow:hidden;border-radius:4px;border:1px solid var(--line);box-shadow:0 2px 10px rgba(0,0,0,.12);background:#fff}
+.pv .lpage{transform:scale(.2796);transform-origin:0 0}
+.pvn{align-self:center;color:var(--subtle);font-size:13px;white-space:nowrap;padding:0 6px}
+/* typeset LaTeX pages (always white paper) */
+.lhost{position:absolute;left:0;top:0;z-index:-6;pointer-events:none}
+.lpage{width:794px;height:1123px;background:#fff;color:#111;position:relative;padding:100px 104px 0;font:15.5px/1.45 KaTeX_Main,"Latin Modern Roman","Times New Roman",serif;overflow:hidden;color-scheme:light}
+.lbody{height:913px;overflow:hidden}
+.lfoot{position:absolute;bottom:58px;left:0;right:0;text-align:center;font-size:15px}
+.lit{padding-bottom:9px}
+.ltitle{text-align:center;padding:18px 0 30px}
+.ltitle h1{font-weight:400;font-size:26px;line-height:1.25;margin:0 0 14px}
+.lauthor,.ldate{font-size:16.5px;margin-top:6px}
+.lsec{font-weight:700}
+.lsec1{font-size:19.5px;padding:14px 0 8px}
+.lsec2{font-size:16.5px;padding:10px 0 6px}
+.lsec3{font-size:15.5px;padding:8px 0 4px}
+.lnum{display:inline-block;margin-right:1em}
+.lp{text-align:justify}
+.leq{padding:4px 0 14px}.leq .katex-display{margin:0}
+.llist ul,.llist ol{margin:0;padding-left:28px}.llist li{margin:0 0 3px}
+.lfig img{display:block;max-width:72%;max-height:440px;margin:4px auto 6px;border:1px solid #ddd}
+.lpage code{font-family:"Courier New",monospace;font-size:.92em}
+.lpage mark{background:none;font-style:italic}
+/* export sheet (offscreen) */
+.sheet{position:absolute;left:0;top:0;z-index:-5;overflow:hidden}
+.sheet .blk{outline:none!important}.sheet .rz,.sheet .lockdot{display:none!important}
+
+@media (pointer:coarse){.ibtn{width:44px;height:44px}.btn{height:44px}}
+@media (max-width:760px){
+  .lbl-wide{display:none}
+  .tr .btn{padding:0 10px}
+  .tr{top:68px}
+  #wsName{width:min(46vw,220px)}
+  .rail{top:auto;bottom:14px;left:50%;transform:translateX(-50%);flex-direction:row}
+  .rail .sep{width:1px;height:auto;margin:4px 2px}
+  .tip{display:none}
+  .bl{bottom:76px}.br{bottom:76px}
+  #insp{left:8px;right:8px;top:auto;bottom:8px;width:auto;max-height:58vh;z-index:35}
+  .logo-word{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation-duration:2s!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-cross" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-cursor" viewBox="0 0 24 24"><path d="M5 3l14 8-6.2 1.6L10 19z"/></symbol>
+  <symbol id="i-hand" viewBox="0 0 24 24"><path d="M8 13V5.5a1.5 1.5 0 013 0V12m0-1V4.5a1.5 1.5 0 013 0V12m0-6.5a1.5 1.5 0 013 0V13m0-4.5a1.5 1.5 0 013 0V15a6 6 0 01-6 6h-1.5a6 6 0 01-4.6-2.2L5 15.6a1.6 1.6 0 012.4-2.1L8 14"/></symbol>
+  <symbol id="i-text" viewBox="0 0 24 24"><path d="M5 6V4h14v2M12 4v16M9 20h6"/></symbol>
+  <symbol id="i-sigma" viewBox="0 0 24 24"><path d="M18 5V4H6l6 8-6 8h12v-1"/></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 012-2h2M16 4h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M8 20H6a2 2 0 01-2-2v-2M8 10h8M8 14h5"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><path d="M7 5v4M5 7h4M17 5v4M15 7h4M7 15v4M5 17h4M17 15v4M15 17h4"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 010 11H11"/></symbol>
+  <symbol id="i-redo" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 000 11H13"/></symbol>
+  <symbol id="i-save" viewBox="0 0 24 24"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 19h14"/></symbol>
+  <symbol id="i-open" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></symbol>
+  <symbol id="i-md" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 15V9l2.5 3L12 9v6M16 9v6m0 0l-2-2m2 2l2-2"/></symbol>
+  <symbol id="i-pdf" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"/></symbol>
+  <symbol id="i-full" viewBox="0 0 24 24"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3"/></symbol>
+  <symbol id="i-dup" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 012-2h10M14 11v6M11 14h6"/></symbol>
+  <symbol id="i-front" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 14V6a2 2 0 012-2h8"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><rect x="4" y="4" width="12" height="12" rx="2"/><path d="M20 10v8a2 2 0 01-2 2h-8"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></symbol>
+  <symbol id="i-unlock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 017.5-2"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9L2.4 18a2 2 0 001.7 3h15.8a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></symbol>
+  <symbol id="i-kbd" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 014.6 1.3c0 1.7-2.1 2-2.1 3.4M12 17h.01"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20l1.2-4.6L16.5 4.1a2 2 0 012.8 0l.6.6a2 2 0 010 2.8L8.6 18.8z"/><path d="M14.5 6l3.5 3.5"/></symbol>
+  <symbol id="i-eraser" viewBox="0 0 24 24"><path d="M8.5 20H20M4.6 15.4l9.8-9.8a2 2 0 012.8 0l2.2 2.2a2 2 0 010 2.8L12 18H8.2a2 2 0 01-1.4-.6l-2.2-2.2a2 2 0 010-2.8zM9 11l6 6"/></symbol>
+  <symbol id="i-tex" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5M8.5 12h4M10.5 12v5M13.5 13l3 4M16.5 13l-3 4"/></symbol>
+  <symbol id="i-screen" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M7.5 8.5v3M6 10h3M14 9h4M14 12h3"/></symbol>
+  <symbol id="i-alignl" viewBox="0 0 24 24"><path d="M4 4v16M8 8h10M8 16h6"/></symbol>
+  <symbol id="i-alignt" viewBox="0 0 24 24"><path d="M4 4h16M8 8v10M16 8v6"/></symbol>
+  <symbol id="i-distv" viewBox="0 0 24 24"><path d="M4 4h16M4 20h16M8 10h8v4H8z"/></symbol>
+</svg>
+
+<div id="stage" data-tool="select" aria-label="Workspace">
+  <div id="world"></div>
+  <div id="marquee" hidden></div>
+</div>
+
+<div id="empty" hidden>
+  <div class="card">
+    <div class="big"><svg class="i"><use href="#i-cross"/></svg></div>
+    <h3>This workspace is empty</h3>
+    <p>Double-click anywhere to write, or bring in a photo of your notes or a board and Symvolo turns it into editable LaTeX.</p>
+    <div class="row" style="justify-content:center">
+      <button class="btn primary" data-act="import"><svg class="i"><use href="#i-scan"/></svg>Import notes</button>
+      <button class="btn outline" data-act="add-math"><svg class="i"><use href="#i-sigma"/></svg>Formula</button>
+      <button class="btn outline" data-act="add-text"><svg class="i"><use href="#i-text"/></svg>Text</button>
+      <button class="btn outline" data-act="pad"><svg class="i"><use href="#i-pen"/></svg>Draw</button>
+    </div>
+  </div>
+</div>
+
+<div class="ui tl">
+  <div class="logo"><div class="logo-mark"><svg class="i"><use href="#i-cross"/></svg></div><span class="logo-word">Symvolo</span></div>
+  <div class="sep"></div>
+  <input id="wsName" aria-label="Workspace name" spellcheck="false">
+  <button class="ibtn" id="wsMenuBtn" aria-label="Workspaces" title="Workspaces"><svg class="i"><use href="#i-chev"/></svg></button>
+</div>
+
+<div class="ui tr">
+  <button class="ibtn" id="undoBtn" aria-label="Undo" title="Undo (Ctrl+Z)"><svg class="i"><use href="#i-undo"/></svg></button>
+  <button class="ibtn" id="redoBtn" aria-label="Redo" title="Redo (Ctrl+Shift+Z)"><svg class="i"><use href="#i-redo"/></svg></button>
+  <div class="sep"></div>
+  <button class="btn primary" data-act="import"><svg class="i"><use href="#i-scan"/></svg><span class="lbl-wide">Import notes</span></button>
+  <button class="btn" id="saveBtn"><svg class="i"><use href="#i-save"/></svg><span class="lbl-wide">Save</span><svg class="i" style="width:14px"><use href="#i-chev"/></svg></button>
+  <button class="ibtn" id="fullBtn" aria-label="Full screen" title="Full screen"><svg class="i"><use href="#i-full"/></svg></button>
+</div>
+
+<div class="ui rail" role="toolbar" aria-label="Tools">
+  <button class="ibtn" data-tool="select" aria-label="Select and move"><svg class="i"><use href="#i-cursor"/></svg><span class="tip">Select &amp; move<kbd>V</kbd></span></button>
+  <button class="ibtn" data-tool="pan" aria-label="Pan"><svg class="i"><use href="#i-hand"/></svg><span class="tip">Pan<kbd>H / Space</kbd></span></button>
+  <div class="sep"></div>
+  <button class="ibtn" data-tool="text" aria-label="Text block"><svg class="i"><use href="#i-text"/></svg><span class="tip">Text block<kbd>T</kbd></span></button>
+  <button class="ibtn" data-tool="math" aria-label="Formula block"><svg class="i"><use href="#i-sigma"/></svg><span class="tip">Formula block<kbd>M</kbd></span></button>
+  <button class="ibtn" data-act="pad" aria-label="Handwrite a formula"><svg class="i"><use href="#i-pen"/></svg><span class="tip">Handwrite → LaTeX<kbd>P</kbd></span></button>
+  <button class="ibtn" data-act="import" aria-label="Import notes"><svg class="i"><use href="#i-scan"/></svg><span class="tip">Photo → LaTeX<kbd>I</kbd></span></button>
+  <div class="sep"></div>
+  <button class="ibtn" id="snapBtn" aria-label="Snap to crosses"><svg class="i"><use href="#i-grid"/></svg><span class="tip">Snap to crosses<kbd>G</kbd></span></button>
+</div>
+
+<div class="ui bl">
+  <button class="btn sm" id="surfBtn" aria-label="Workspace colour"><span class="swatch-btn" id="surfSw"></span><span class="lbl-wide">Colour</span></button>
+  <button class="ibtn" id="helpBtn" aria-label="Keyboard shortcuts" title="Shortcuts"><svg class="i"><use href="#i-help"/></svg></button>
+</div>
+
+<div class="ui br">
+  <button class="ibtn" id="zoomOut" aria-label="Zoom out"><svg class="i"><use href="#i-minus"/></svg></button>
+  <button class="zoomv" id="zoomVal" title="Reset to 100%">100%</button>
+  <button class="ibtn" id="zoomIn" aria-label="Zoom in"><svg class="i"><use href="#i-plus"/></svg></button>
+  <button class="ibtn" id="fitBtn" aria-label="Fit notes to screen" title="Fit to screen (1)"><svg class="i"><use href="#i-fit"/></svg></button>
+</div>
+
+<aside id="insp" hidden aria-label="Block inspector">
+  <div class="ih" id="inspHead"></div>
+  <div class="ib" id="inspBody"></div>
+</aside>
+
+<div id="pop" class="pop" hidden></div>
+<div id="scrim" class="scrim" hidden><div class="modal" id="modal" role="dialog" aria-modal="true"></div></div>
+<div id="toast" role="status"></div>
+<input type="file" id="fileImg" accept="image/*" multiple hidden>
+<input type="file" id="fileWs" accept=".json,application/json" hidden>
+
+<script src="vendor/katex.min.js"></script>
+<script>
+{
+const G = 24;
+const $ = s => document.querySelector(s);
+const uid = () => Math.random().toString(36).slice(2, 10);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const icon = (n, st='') => `<svg class="i" ${st}><use href="#i-${n}"/></svg>`;
+const stage = $('#stage'), world = $('#world'), root = document.documentElement;
+
+const SURFACES = [['Paper','#f6f6f3'],['Mist','#e7ebf0'],['Sand','#ece6da'],['Blueprint','#163a6b'],['Chalkboard','#22372f'],['Graphite','#1e1f23'],['Midnight','#0c0e13']];
+const INKS = [null,'#4a6cf7','#e5484d','#f08c2e','#12a594','#8e6bf0','#8b8f98'];
+const SIZES = [[.8,'S'],[1,'M'],[1.3,'L'],[1.7,'XL']];
+
+/* ---------- storage ---------- */
+const KEY = 'symvolo.v1', OLD_KEY = 'crux.v1';
+const store = {
+  get(){ try { return JSON.parse(localStorage.getItem(KEY) || localStorage.getItem(OLD_KEY)); } catch { return null; } },
+  set(v){ try { localStorage.setItem(KEY, JSON.stringify(v)); return true; } catch { return false; } }
+};
+const prefersDark = (() => { const t = root.getAttribute('data-theme'); if (t) return t === 'dark'; try { return matchMedia('(prefers-color-scheme: dark)').matches; } catch { return false; } })();
+
+function sampleWorkspace(){
+  const B = (kind, x, y, content, o={}) => ({ id: uid(), kind, x, y, content, w: o.w || 360, size: o.size || 1, ink: o.ink || null, fill: o.fill || 'none', align: 'left', z: 1, locked: false, ...o });
+  return { id: uid(), name: 'Example: Fourier series', bg: prefersDark ? '#1e1f23' : '#f6f6f3', font: 'serif', view: { x: 0, y: 0, z: 1 }, updated: Date.now(), blocks: [
+    B('text', 156, 108, '# Fourier series', { w: 456 }),
+    B('text', 156, 180, 'A $2\\pi$-periodic function $f$ that is piecewise smooth can be written as a sum of sines and cosines:', { w: 480 }),
+    B('math', 180, 276, 'f(x) = \\frac{a_0}{2} + \\sum_{n=1}^{\\infty}\\left(a_n\\cos nx + b_n \\sin nx\\right)', { size: 1.15 }),
+    B('text', 156, 396, '## Coefficients', { w: 300 }),
+    B('math', 180, 444, '\\begin{aligned} a_n &= \\frac{1}{\\pi}\\int_{-\\pi}^{\\pi} f(x)\\cos nx\\,dx \\\\ b_n &= \\frac{1}{\\pi}\\int_{-\\pi}^{\\pi} f(x)\\sin nx\\,dx \\end{aligned}'),
+    B('text', 156, 636, '**Parseval.** The energy is the same in both pictures:', { w: 456 }),
+    B('math', 180, 684, '\\frac{1}{\\pi}\\int_{-\\pi}^{\\pi}|f(x)|^2\\,dx = \\frac{a_0^2}{2}+\\sum_{n\\ge1}\\left(a_n^2+b_n^2\\right)', { ink: '#4a6cf7' }),
+    B('text', 756, 300, '**Square wave**\n- only odd $n$ survive\n- $b_n = \\dfrac{4}{n\\pi}$, all $a_n = 0$\n- overshoot near jumps ≈ 9 % (Gibbs)', { w: 312, fill: 'card' }),
+    B('text', 756, 492, 'Check: at $x=\\pi/2$ this gives $1-\\tfrac13+\\tfrac15-\\dots=\\tfrac{\\pi}{4}$', { w: 312, fill: 'mark', ink: '#e5484d' }),
+  ]};
+}
+function newWorkspace(name){ const cur = S && W(); return { id: uid(), name: name || 'Untitled workspace', bg: cur ? cur.bg : (prefersDark ? '#1e1f23' : '#f6f6f3'), font: cur ? cur.font : 'serif', view: { x: 0, y: 0, z: 1 }, updated: Date.now(), blocks: [] }; }
+
+let S = store.get();
+if (!S || !Array.isArray(S.workspaces) || !S.workspaces.length) { const w = sampleWorkspace(); S = { workspaces: [w], activeId: w.id, snap: true }; }
+const W = () => S.workspaces.find(w => w.id === S.activeId) || S.workspaces[0];
+
+let saveT = 0, warnedQuota = false;
+function persist(){ clearTimeout(saveT); saveT = setTimeout(() => { if (!store.set(S) && !warnedQuota) { warnedQuota = true; toast('Browser storage is full — use Save → Save workspace to keep your work'); } }, 400); }
+
+/* ---------- history ---------- */
+let hist = [], fut = [], lastSnap = '';
+const snapStr = () => JSON.stringify(W().blocks);
+function resetHistory(){ hist = []; fut = []; lastSnap = snapStr(); updUndo(); }
+function commit(){ clearTimeout(commitT); const s = snapStr(); if (s === lastSnap) return; hist.push(lastSnap); if (hist.length > 120) hist.shift(); fut = []; lastSnap = s; W().updated = Date.now(); persist(); updUndo(); updEmpty(); }
+let commitT = 0; const commitSoon = () => { clearTimeout(commitT); commitT = setTimeout(commit, 600); };
+function undo(){ commit(); if (!hist.length) return; fut.push(lastSnap); lastSnap = hist.pop(); W().blocks = JSON.parse(lastSnap); afterRestore(); }
+function redo(){ if (!fut.length) return; hist.push(lastSnap); lastSnap = fut.pop(); W().blocks = JSON.parse(lastSnap); afterRestore(); }
+function afterRestore(){ for (const id of [...sel]) if (!blk(id)) sel.delete(id); renderAll(); renderInspector(); persist(); updUndo(); }
+function updUndo(){ $('#undoBtn').disabled = !hist.length; $('#redoBtn').disabled = !fut.length; }
+
+/* ---------- rendering ---------- */
+function tex(src, display){
+  if (!window.katex) return `<code>${esc(src)}</code>`;
+  try { return katex.renderToString(src, { displayMode: display, throwOnError: false, strict: 'ignore', output: 'html' }); }
+  catch (e) { return `<span class="err">${esc(src)}</span>`; }
+}
+const MATH_RE = /\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\$([^$\n]+?)\$|\\\(([\s\S]+?)\\\)/g;
+function inl(s){
+  return s.replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|[^*])\*([^*\s][^*]*?)\*/g, '$1<i>$2</i>').replace(/==(.+?)==/g, '<mark>$1</mark>');
+}
+function renderRich(src){
+  const math = [];
+  let s = String(src || '').replace(MATH_RE, (m, a, b, c, d) => { math.push(tex(a ?? b ?? c ?? d, a != null || b != null)); return `\u0000${math.length - 1}\u0000`; });
+  s = esc(s);
+  let html = '', list = null;
+  const close = () => { if (list) { html += `</${list}>`; list = null; } };
+  for (const raw of s.split('\n')) {
+    const l = raw.trimEnd(); let m;
+    if ((m = l.match(/^(#{1,3})\s+(.*)/))) { close(); html += `<div class="h${m[1].length}">${inl(m[2])}</div>`; }
+    else if ((m = l.match(/^\s*[-*•]\s+(.*)/))) { if (list !== 'ul') { close(); html += '<ul>'; list = 'ul'; } html += `<li>${inl(m[1])}</li>`; }
+    else if ((m = l.match(/^\s*\d+[.)]\s+(.*)/))) { if (list !== 'ol') { close(); html += '<ol>'; list = 'ol'; } html += `<li>${inl(m[1])}</li>`; }
+    else if (!l.trim()) { close(); html += '<div class="gap"></div>'; }
+    else { close(); html += `<p>${inl(l)}</p>`; }
+  }
+  close();
+  return html.replace(/\u0000(\d+)\u0000/g, (_, i) => math[i]);
+}
+
+const els = new Map();
+const sel = new Set();
+const blk = id => W().blocks.find(b => b.id === id);
+
+function drawBlock(b){
+  let el = els.get(b.id);
+  if (!el) {
+    el = document.createElement('div'); el.dataset.id = b.id;
+    el.innerHTML = `<div class="body"></div><div class="rz" data-rz></div><div class="lockdot">${icon('lock')}</div>`;
+    world.append(el); els.set(b.id, el);
+  }
+  el.className = `blk k-${b.kind} f-${b.fill || 'none'}${sel.has(b.id) ? ' sel' : ''}${b.unsure ? ' unsure' : ''}${b.locked ? ' locked' : ''}`;
+  el.style.left = b.x + 'px'; el.style.top = b.y + 'px'; el.style.zIndex = b.z || 1;
+  el.style.width = b.kind === 'math' ? '' : (b.w || 360) + 'px';
+  el.style.setProperty('--sc', b.size || 1);
+  el.style.color = b.ink || '';
+  el.style.textAlign = b.kind === 'text' ? (b.align || 'left') : '';
+  const key = b.kind + '|' + (b.kind === 'image' ? b.src.length + ':' + b.src.slice(-40) : b.content);
+  if (el._key !== key) {
+    el.firstChild.innerHTML = b.kind === 'math' ? tex(b.content || '\\square', true) : b.kind === 'image' ? `<img src="${b.src}" alt="Photo of notes" draggable="false">` : (b.content.trim() ? renderRich(b.content) : '<p style="opacity:.45">Empty text</p>');
+    el._key = key;
+  }
+  if (b.kind === 'image') el.firstChild.firstChild.style.opacity = b.op ?? 1;
+  return el;
+}
+function renderAll(){
+  const ids = new Set(W().blocks.map(b => b.id));
+  for (const [id, el] of els) if (!ids.has(id)) { el.remove(); els.delete(id); }
+  W().blocks.forEach(drawBlock);
+  applyView(); updEmpty();
+}
+function updEmpty(){ $('#empty').hidden = W().blocks.length > 0; }
+
+/* ---------- surface / view ---------- */
+function lum(hex){ const n = parseInt(hex.slice(1), 16); const f = c => { c /= 255; return c <= .03928 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4; }; return .2126 * f(n >> 16 & 255) + .7152 * f(n >> 8 & 255) + .0722 * f(n & 255); }
+let crossURL = '';
+function applySurface(){
+  const w = W(), dark = lum(w.bg) < .22;
+  root.dataset.chrome = dark ? 'dark' : 'light';
+  root.dataset.font = w.font === 'sans' ? 'sans' : 'serif';
+  root.style.setProperty('--surface', w.bg);
+  const c = dark ? 'rgba(235,240,250,.30)' : 'rgba(20,24,34,.30)';
+  const h = G / 2;
+  crossURL = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${G}' height='${G}'><path d='M${h} ${h - 3}v6M${h - 3} ${h}h6' stroke='${c}' stroke-width='1.1' stroke-linecap='round'/></svg>`)}")`;
+  stage.style.backgroundImage = crossURL;
+  root.style.setProperty('--pad-cross', crossURL);
+  $('#surfSw').style.background = w.bg;
+  applyView();
+}
+function applyView(){
+  const v = W().view;
+  world.style.transform = `translate(${v.x}px,${v.y}px) scale(${v.z})`;
+  let g = G * v.z; while (g < 11) g *= 2;
+  stage.style.backgroundSize = `${g}px ${g}px`;
+  stage.style.backgroundPosition = `${v.x}px ${v.y}px`;
+  $('#zoomVal').textContent = Math.round(v.z * 100) + '%';
+}
+let viewSaveT = 0; const viewChanged = () => { applyView(); clearTimeout(viewSaveT); viewSaveT = setTimeout(persist, 300); };
+const toWorld = (sx, sy) => { const v = W().view; return { x: (sx - v.x) / v.z, y: (sy - v.y) / v.z }; };
+function zoomAt(z, sx, sy){ const v = W().view, p = toWorld(sx, sy); v.z = clamp(z, .15, 4); v.x = sx - p.x * v.z; v.y = sy - p.y * v.z; viewChanged(); }
+function bbox(list){
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const b of list) { const el = els.get(b.id); if (!el) continue; x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + el.offsetWidth); y1 = Math.max(y1, b.y + el.offsetHeight); }
+  return x0 === Infinity ? null : { x0, y0, x1, y1 };
+}
+function fit(list = W().blocks, maxZ = 1.25){
+  const bb = bbox(list); const v = W().view;
+  if (!bb) { v.x = 0; v.y = 0; v.z = 1; return viewChanged(); }
+  const narrow = innerWidth < 760, insp = !$('#insp').hidden && !narrow ? 360 : 0;
+  const ml = narrow ? 16 : 80, aw = innerWidth - ml - (narrow ? 16 : 60) - insp, top = narrow ? 124 : 76, ah = innerHeight - top - (narrow ? 150 : 76);
+  v.z = clamp(Math.min(aw / (bb.x1 - bb.x0), ah / (bb.y1 - bb.y0)), .15, maxZ);
+  v.x = ml + (aw - (bb.x1 - bb.x0) * v.z) / 2 - bb.x0 * v.z;
+  v.y = top + (ah - (bb.y1 - bb.y0) * v.z) / 2 - bb.y0 * v.z;
+  viewChanged();
+}
+const snapV = v => S.snap ? Math.round(v / G) * G : Math.round(v);
+
+/* ---------- selection & tools ---------- */
+let tool = 'select';
+function setTool(t){ tool = t; stage.dataset.tool = t; document.querySelectorAll('.rail [data-tool]').forEach(b => b.setAttribute('aria-pressed', b.dataset.tool === t)); }
+function setSel(ids){ sel.clear(); ids.forEach(i => sel.add(i)); for (const b of W().blocks) { const el = els.get(b.id); if (el) el.classList.toggle('sel', sel.has(b.id)); } renderInspector(); }
+const maxZ = () => W().blocks.reduce((m, b) => Math.max(m, b.z || 1), 0);
+
+function addBlock(kind, x, y, content, extra = {}){
+  const b = { id: uid(), kind, x: snapV(x), y: snapV(y), content: content ?? '', w: 360, size: 1, ink: null, fill: 'none', align: 'left', z: maxZ() + 1, locked: false, ...extra };
+  W().blocks.push(b); drawBlock(b); updEmpty(); return b;
+}
+function createAt(kind, sx, sy){
+  const p = toWorld(sx, sy);
+  const b = addBlock(kind, p.x, p.y, kind === 'math' ? '' : '');
+  commit(); setSel([b.id]); setTool('select'); openEditorFocus = true; renderInspector();
+}
+function createCentered(kind){
+  const r = stage.getBoundingClientRect();
+  createAt(kind, r.width * .42, r.height * .4);
+}
+
+/* ---------- pointer interaction ---------- */
+const pts = new Map(); let mode = null, drag = null, spaceDown = false;
+stage.addEventListener('pointerdown', e => {
+  closePop();
+  pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pts.size === 2) { const [a, b] = [...pts.values()]; const v = W().view; drag = { d: Math.hypot(a.x - b.x, a.y - b.y), z: v.z, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, vx: v.x, vy: v.y }; mode = 'pinch'; return; }
+  const bel = e.target.closest('.blk');
+  stage.setPointerCapture(e.pointerId);
+  if (e.button === 1 || spaceDown || tool === 'pan' || (e.pointerType === 'touch' && !bel && tool === 'select')) { const v = W().view; mode = 'pan'; drag = { sx: e.clientX, sy: e.clientY, vx: v.x, vy: v.y }; stage.classList.add('panning'); return; }
+  if (e.button !== 0) return;
+  if (tool === 'text' || tool === 'math') { e.preventDefault(); createAt(tool, e.clientX, e.clientY); mode = null; return; }
+  if (bel) {
+    const b = blk(bel.dataset.id); if (!b) return;
+    if (e.target.closest('[data-rz]') && !b.locked) { mode = 'resize'; drag = { b, sx: e.clientX, w: els.get(b.id).offsetWidth, size: b.size || 1 }; return; }
+    if (e.shiftKey || e.metaKey || e.ctrlKey) { sel.has(b.id) ? sel.delete(b.id) : sel.add(b.id); setSel([...sel]); mode = null; return; }
+    if (!sel.has(b.id)) setSel([b.id]);
+    const movers = [...sel].map(blk).filter(x => x && !x.locked);
+    mode = 'drag'; drag = { sx: e.clientX, sy: e.clientY, moved: false, items: movers.map(x => ({ b: x, x: x.x, y: x.y })) };
+    return;
+  }
+  const p = toWorld(e.clientX, e.clientY);
+  mode = 'marquee'; drag = { p, sx: e.clientX, sy: e.clientY, add: e.shiftKey ? [...sel] : [] };
+  if (!e.shiftKey) setSel([]);
+});
+stage.addEventListener('pointermove', e => {
+  if (pts.has(e.pointerId)) pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (!mode) return;
+  const v = W().view;
+  if (mode === 'pinch' && pts.size >= 2) {
+    const [a, b] = [...pts.values()], d = Math.hypot(a.x - b.x, a.y - b.y), cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
+    const z = clamp(drag.z * d / drag.d, .15, 4), wx = (drag.cx - drag.vx) / drag.z, wy = (drag.cy - drag.vy) / drag.z;
+    v.z = z; v.x = cx - wx * z; v.y = cy - wy * z; viewChanged();
+  } else if (mode === 'pan') { v.x = drag.vx + e.clientX - drag.sx; v.y = drag.vy + e.clientY - drag.sy; viewChanged(); }
+  else if (mode === 'drag') {
+    const dx = (e.clientX - drag.sx) / v.z, dy = (e.clientY - drag.sy) / v.z;
+    if (!drag.moved && Math.hypot(dx, dy) * v.z < 3) return;
+    drag.moved = true;
+    for (const it of drag.items) { it.b.x = snapV(it.x + dx); it.b.y = snapV(it.y + dy); const el = els.get(it.b.id); el.style.left = it.b.x + 'px'; el.style.top = it.b.y + 'px'; }
+  } else if (mode === 'resize') {
+    const b = drag.b, dx = (e.clientX - drag.sx) / v.z;
+    if (b.kind === 'math') b.size = clamp(+(drag.size * (drag.w + dx) / drag.w).toFixed(2), .4, 5);
+    else b.w = Math.max(b.kind === 'image' ? 80 : 120, S.snap ? Math.round((drag.w + dx) / (G / 2)) * (G / 2) : Math.round(drag.w + dx));
+    drawBlock(b);
+  } else if (mode === 'marquee') {
+    const m = $('#marquee'), x0 = Math.min(drag.sx, e.clientX), y0 = Math.min(drag.sy, e.clientY), w = Math.abs(e.clientX - drag.sx), h = Math.abs(e.clientY - drag.sy);
+    if (w + h < 6) return;
+    m.hidden = false; Object.assign(m.style, { left: x0 + 'px', top: y0 + 'px', width: w + 'px', height: h + 'px' });
+    const a = toWorld(x0, y0), c = toWorld(x0 + w, y0 + h), hit = [];
+    for (const b of W().blocks) { const el = els.get(b.id); if (b.x < c.x && b.x + el.offsetWidth > a.x && b.y < c.y && b.y + el.offsetHeight > a.y) hit.push(b.id); }
+    sel.clear(); [...drag.add, ...hit].forEach(i => sel.add(i)); for (const [id, el] of els) el.classList.toggle('sel', sel.has(id));
+  }
+});
+function endPointer(e){
+  pts.delete(e.pointerId);
+  if (mode === 'pinch') { if (pts.size < 2) { mode = null; } return; }
+  if (mode === 'drag' && drag.moved) commit();
+  if (mode === 'resize') { commit(); renderInspector(); }
+  if (mode === 'marquee') { $('#marquee').hidden = true; renderInspector(); }
+  stage.classList.remove('panning'); mode = null; drag = null;
+}
+stage.addEventListener('pointerup', endPointer);
+stage.addEventListener('pointercancel', endPointer);
+stage.addEventListener('dblclick', e => {
+  const bel = document.elementFromPoint(e.clientX, e.clientY)?.closest('.blk');
+  if (bel) { setSel([bel.dataset.id]); openEditorFocus = true; renderInspector(); return; }
+  if (tool === 'select') createAt('text', e.clientX, e.clientY);
+});
+stage.addEventListener('wheel', e => {
+  e.preventDefault();
+  const v = W().view;
+  if (e.ctrlKey || e.metaKey) zoomAt(v.z * Math.exp(-e.deltaY * .0085), e.clientX, e.clientY);
+  else { v.x -= e.shiftKey && !e.deltaX ? e.deltaY : e.deltaX; v.y -= e.shiftKey && !e.deltaX ? 0 : e.deltaY; viewChanged(); }
+}, { passive: false });
+
+/* ---------- keyboard ---------- */
+const editing = t => t && (t.closest?.('input,textarea,[contenteditable=true],math-field,.rich') || t.tagName === 'MATH-FIELD');
+addEventListener('keydown', e => {
+  if (e.key === 'Escape') { if (!$('#scrim').hidden && !importBusy) return closeModal(); if (!$('#pop').hidden) return closePop(); if (editing(document.activeElement)) { document.activeElement.blur?.(); return; } setSel([]); setTool('select'); return; }
+  if (pad && !$('#scrim').hidden) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !editing(e.target)) { e.preventDefault(); pad.strokes.pop(); pad.redraw(); return; }
+    if (e.key === 'Enter') { e.preventDefault(); if (e.target.id === 'padTex' || (!$('#padRes').hidden && !editing(e.target) && pad.latex)) padInsert(); else padRecognize(); return; }
+  }
+  if (editing(e.target) || !$('#scrim').hidden) return;
+  const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+  if (mod && k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if (mod && k === 'y') { e.preventDefault(); redo(); return; }
+  if (mod && k === 's') { e.preventDefault(); saveWorkspaceFile(); return; }
+  if (mod && k === 'd') { e.preventDefault(); duplicateSel(); return; }
+  if (mod && k === 'a') { e.preventDefault(); setSel(W().blocks.map(b => b.id)); return; }
+  if (mod) return;
+  if (e.key === ' ') { spaceDown = true; stage.classList.add('panning'); e.preventDefault(); return; }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && sel.size) { e.preventDefault(); deleteSel(); return; }
+  if (e.key.startsWith('Arrow') && sel.size) {
+    e.preventDefault(); const st = e.shiftKey ? G : (S.snap ? G / 2 : 1);
+    const dx = e.key === 'ArrowLeft' ? -st : e.key === 'ArrowRight' ? st : 0, dy = e.key === 'ArrowUp' ? -st : e.key === 'ArrowDown' ? st : 0;
+    for (const id of sel) { const b = blk(id); if (b && !b.locked) { b.x += dx; b.y += dy; drawBlock(b); } } commitSoon(); return;
+  }
+  if (e.key === 'Enter' && sel.size === 1) { e.preventDefault(); openEditorFocus = true; renderInspector(); return; }
+  const map = { v: () => setTool('select'), h: () => setTool('pan'), t: () => setTool('text'), m: () => setTool('math'), i: () => openImport(), p: () => openPad({ kind: 'new' }), g: toggleSnap, '0': () => { const r = stage.getBoundingClientRect(); zoomAt(1, r.width / 2, r.height / 2); }, '1': () => fit(), '+': () => zoomStep(1.2), '=': () => zoomStep(1.2), '-': () => zoomStep(1 / 1.2) };
+  map[k]?.();
+});
+addEventListener('keyup', e => { if (e.key === ' ') { spaceDown = false; if (mode !== 'pan') stage.classList.remove('panning'); } });
+function zoomStep(f){ zoomAt(W().view.z * f, innerWidth / 2, innerHeight / 2); }
+
+function deleteSel(){ if (!sel.size) return; W().blocks = W().blocks.filter(b => !sel.has(b.id)); sel.clear(); renderAll(); commit(); renderInspector(); }
+function duplicateSel(){
+  if (!sel.size) return; const ids = [];
+  for (const id of sel) { const b = blk(id); if (!b) continue; const c = { ...JSON.parse(JSON.stringify(b)), id: uid(), x: b.x + G, y: b.y + G, z: maxZ() + 1, locked: false }; W().blocks.push(c); drawBlock(c); ids.push(c.id); }
+  commit(); setSel(ids);
+}
+function toggleSnap(){ S.snap = !S.snap; $('#snapBtn').setAttribute('aria-pressed', S.snap); persist(); toast(S.snap ? 'Snapping to the crosses' : 'Free positioning'); }
+
+/* ---------- MathLive (loaded on demand) ---------- */
+let mlP = null;
+function loadMathLive(){
+  if (window.MathfieldElement) return Promise.resolve(true);
+  if (mlP) return mlP;
+  mlP = new Promise(res => {
+    const s = document.createElement('script'); s.src = 'vendor/mathlive.min.js';
+    s.onload = () => { try { MathfieldElement.fontsDirectory = new URL('vendor/fonts/', location.href).href; MathfieldElement.soundsDirectory = null; } catch {} res(!!window.MathfieldElement); };
+    s.onerror = () => res(false);
+    document.head.append(s);
+  });
+  return mlP;
+}
+function loadScript(src){ return new Promise(res => { const s = document.createElement('script'); s.src = src; s.onload = () => res(true); s.onerror = () => res(false); document.head.append(s); }); }
+
+/* ---------- inspector ---------- */
+let openEditorFocus = false, inspTab = { math: 'visual', text: 'visual' };
+function renderInspector(){
+  const box = $('#insp'), head = $('#inspHead'), body = $('#inspBody');
+  const list = [...sel].map(blk).filter(Boolean);
+  if (!list.length) { box.hidden = true; return; }
+  box.hidden = false;
+  if (list.length > 1) {
+    head.innerHTML = `<span class="chip">${list.length} blocks</span><span class="grow"></span><button class="ibtn" data-i="close" aria-label="Close">${icon('x')}</button>`;
+    body.innerHTML = `
+      <div class="sec"><h4>Line up</h4><div class="tb">
+        <button class="btn sm outline" data-i="al">${icon('alignl')}Left edges</button>
+        <button class="btn sm outline" data-i="at">${icon('alignt')}Top edges</button>
+        <button class="btn sm outline" data-i="dv">${icon('distv')}Even spacing</button></div></div>
+      ${styleSec(list)}
+      <div class="sec"><h4>Arrange</h4><div class="tb">
+        <button class="btn sm outline" data-i="dup">${icon('dup')}Duplicate</button>
+        <button class="btn sm outline" data-i="lock">${icon('lock')}Lock all</button>
+        <button class="btn sm outline" data-i="unlock">${icon('unlock')}Unlock all</button>
+        <button class="btn sm outline danger" data-i="del">${icon('trash')}Delete</button></div></div>`;
+    return;
+  }
+  const b = list[0];
+  const kindName = { math: 'Formula', text: 'Text', image: 'Photo' }[b.kind];
+  head.innerHTML = `<span class="chip k-${b.kind}">${icon(b.kind === 'math' ? 'sigma' : b.kind === 'text' ? 'text' : 'scan', 'style="width:13px;height:13px"')}${kindName}</span><span class="grow"></span>
+    <button class="ibtn" data-i="lock" aria-pressed="${!!b.locked}" aria-label="${b.locked ? 'Unlock' : 'Lock position'}" title="${b.locked ? 'Unlock' : 'Lock position'}">${icon(b.locked ? 'lock' : 'unlock')}</button>
+    <button class="ibtn" data-i="close" aria-label="Close">${icon('x')}</button>`;
+  let h = '';
+  if (b.unsure) h += `<div class="banner">${icon('warn')}<div><b>Check this block.</b> Part of the handwriting was hard to read${b.note ? `: ${esc(b.note)}` : '.'}<div style="margin-top:8px"><button class="btn sm outline" data-i="ok">${icon('check')}Looks right</button></div></div></div>`;
+  if (b.kind === 'math') {
+    h += `<div class="sec"><div class="seg wide" role="tablist"><button data-tab="visual" aria-pressed="${inspTab.math === 'visual'}">Visual</button><button data-tab="latex" aria-pressed="${inspTab.math === 'latex'}">LaTeX</button></div>
+      <div id="editPane"></div>
+      <div class="hint" id="editHint"></div></div>`;
+  } else if (b.kind === 'text') {
+    h += `<div class="sec"><div class="seg wide" role="tablist"><button data-tab="visual" aria-pressed="${inspTab.text === 'visual'}">Visual</button><button data-tab="latex" aria-pressed="${inspTab.text === 'latex'}">Source</button></div>
+      <div id="editPane"></div>
+      <div class="hint" id="editHint"></div></div>`;
+  } else {
+    h += `<div class="sec"><h4>Photo</h4><div class="row"><label for="opR">Opacity</label><input type="range" id="opR" min="0.15" max="1" step="0.05" value="${b.op ?? 1}"></div>
+      <button class="btn outline" data-i="reconvert">${icon('scan')}Convert this photo to LaTeX</button></div>`;
+  }
+  h += styleSec([b]);
+  h += `<div class="sec"><h4>Arrange</h4><div class="tb">
+    <button class="btn sm outline" data-i="front">${icon('front')}Front</button>
+    <button class="btn sm outline" data-i="back">${icon('back')}Back</button>
+    <button class="btn sm outline" data-i="dup">${icon('dup')}Duplicate</button>
+    <button class="btn sm outline danger" data-i="del">${icon('trash')}Delete</button></div>
+    <div class="hint">Position <span style="font-family:var(--mono)">${b.x}, ${b.y}</span>${b.kind !== 'math' ? ` · width <span style="font-family:var(--mono)">${b.w}</span>` : ''} — drag the block, or nudge with arrow keys (<kbd>Shift</kbd> for bigger steps).</div></div>`;
+  body.innerHTML = h;
+  if (b.kind !== 'image') buildEditor(b);
+}
+function styleSec(list){
+  const one = list.length === 1 ? list[0] : null, k = one?.kind;
+  const sz = one ? (SIZES.reduce((a, s) => Math.abs(s[0] - (one.size || 1)) < Math.abs(a[0] - (one.size || 1)) ? s : a)[0]) : null;
+  let h = `<div class="sec"><h4>Style</h4>`;
+  if (k !== 'image') {
+    h += `<div class="row"><label>Size</label><div class="seg">${SIZES.map(([v, l]) => `<button data-size="${v}" aria-pressed="${sz === v}">${l}</button>`).join('')}</div></div>
+      <div class="row"><label>Ink</label><div class="row" style="gap:7px">${INKS.map(c => `<button class="ink" data-ink="${c || ''}" aria-pressed="${one ? (one.ink || null) === c : false}" style="background:${c || 'var(--note-ink)'}" aria-label="${c || 'Automatic'}">${c ? '' : '<span style="color:var(--surface);font-weight:700">A</span>'}</button>`).join('')}</div></div>`;
+  }
+  h += `<div class="row"><label>Background</label><div class="seg">${[['none', 'None'], ['card', 'Card'], ['mark', 'Highlight']].map(([v, l]) => `<button data-fill="${v}" aria-pressed="${one ? (one.fill || 'none') === v : false}">${l}</button>`).join('')}</div></div>`;
+  if (k === 'text') h += `<div class="row"><label>Align</label><div class="seg">${['left', 'center', 'right'].map(a => `<button data-align="${a}" aria-pressed="${(one.align || 'left') === a}">${a[0].toUpperCase() + a.slice(1)}</button>`).join('')}</div></div>`;
+  return h + '</div>';
+}
+
+async function buildEditor(b){
+  const pane = $('#editPane'), hint = $('#editHint'), tab = inspTab[b.kind];
+  const focus = openEditorFocus; openEditorFocus = false;
+  const update = v => { b.content = v; drawBlock(b); commitSoon(); };
+  if (tab === 'latex') {
+    pane.innerHTML = `<textarea class="code" id="srcTA" spellcheck="false" aria-label="${b.kind === 'math' ? 'LaTeX source' : 'Text source'}"></textarea>`;
+    const ta = $('#srcTA'); ta.value = b.content; ta.oninput = () => update(ta.value);
+    ta.onkeydown = e => { if (e.key === 'Tab') { e.preventDefault(); ta.setRangeText('  ', ta.selectionStart, ta.selectionEnd, 'end'); update(ta.value); } };
+    hint.innerHTML = b.kind === 'math' ? 'Plain LaTeX, no <kbd>$</kbd> needed. For several lines use <kbd>\\begin{aligned} … \\end{aligned}</kbd> with <kbd>&amp;</kbd> and <kbd>\\\\</kbd>.' : 'Markdown with LaTeX: <kbd>$x^2$</kbd> inline, <kbd>$$…$$</kbd> on its own line, <kbd>#</kbd> headings, <kbd>-</kbd> lists, <kbd>**bold**</kbd>.';
+    if (focus) ta.focus();
+    return;
+  }
+  pane.innerHTML = '<div class="loading">Loading the formula editor…</div>';
+  const ok = await loadMathLive();
+  if (!document.body.contains(pane) || sel.size !== 1 || !sel.has(b.id)) return;
+  if (!ok) { inspTab[b.kind] = 'latex'; return buildEditor(b); }
+  if (b.kind === 'math') {
+    pane.innerHTML = '';
+    const mf = new MathfieldElement(); mf.className = 'mfmain'; mf.value = b.content; mf.setAttribute('aria-label', 'Formula');
+    try { mf.mathVirtualKeyboardPolicy = 'auto'; mf.smartFence = true; } catch {}
+    mf.addEventListener('input', () => update(mf.value));
+    pane.append(mf);
+    hint.innerHTML = `Type straight into the formula: <kbd>/</kbd> fraction, <kbd>^</kbd> power, <kbd>_</kbd> index, <kbd>sqrt</kbd>, <kbd>int</kbd>, <kbd>sum</kbd>, <kbd>alpha</kbd>.<div class="tb" style="margin-top:8px"><button class="btn sm outline" data-i="draw">${icon('pen')}Draw it by hand</button><button class="btn sm outline" data-i="kbd">${icon('kbd')}Math keyboard</button></div>`;
+    if (focus) setTimeout(() => { mf.focus(); try { mf.executeCommand('moveToMathfieldEnd'); } catch {} }, 60);
+  } else {
+    pane.innerHTML = `<div class="tb" style="margin-bottom:8px">
+        <button class="btn sm outline" data-r="inline" title="Insert a formula inside the sentence">${icon('sigma')}Inline</button>
+        <button class="btn sm outline" data-r="display" title="Insert a formula on its own line">${icon('sigma')}Display</button>
+        <button class="btn sm outline" data-r="draw" aria-label="Draw a formula" title="Draw a formula by hand">${icon('pen')}</button>
+        <button class="btn sm outline" data-r="bold" aria-label="Bold"><b>B</b></button>
+        <button class="btn sm outline" data-r="ital" aria-label="Italic"><i style="font-family:serif">I</i></button></div>
+      <div class="rich" id="rich" contenteditable="true" spellcheck="true" aria-label="Text with formulas"></div>`;
+    const rich = $('#rich');
+    fillRich(rich, b.content);
+    const sync = () => update(serializeRich(rich));
+    rich.addEventListener('input', sync);
+    rich.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.target.closest('math-field')) { e.preventDefault(); document.execCommand('insertLineBreak'); sync(); } });
+    rich.addEventListener('paste', e => { if (e.target.closest('math-field')) return; e.preventDefault(); document.execCommand('insertText', false, e.clipboardData.getData('text/plain')); });
+    richRange = null;
+    pane.querySelectorAll('[data-r]').forEach(btn => btn.onmousedown = e => e.preventDefault());
+    pane.querySelectorAll('[data-r]').forEach(btn => btn.onclick = () => {
+      const r = btn.dataset.r;
+      if (r === 'draw') { openPad({ kind: 'inline' }); return; }
+      if (r === 'bold' || r === 'ital') { const m = r === 'bold' ? '**' : '*'; if (richRange) { const s = getSelection(); s.removeAllRanges(); s.addRange(richRange); } else rich.focus(); document.execCommand('insertText', false, m + (getSelection().toString() || 'text') + m); sync(); return; }
+      const w = mfWrap('', r === 'display');
+      if (richRange && rich.contains(richRange.startContainer)) { richRange.deleteContents(); richRange.insertNode(w); } else rich.append(w);
+      w.after(document.createTextNode('\u200b'));
+      sync(); setTimeout(() => { const f = w.querySelector('math-field'); f.focus(); try { f.executeCommand('moveToMathfieldEnd'); } catch {} }, 60);
+    });
+    hint.innerHTML = 'Write text directly and click any formula to edit it in place. Switch to <b>Source</b> to see the Markdown + LaTeX.';
+    if (focus) { rich.focus(); const s = getSelection(); s.selectAllChildren(rich); s.collapseToEnd(); }
+  }
+}
+let richRange = null;
+document.addEventListener('selectionchange', () => { const rich = document.getElementById('rich'), s = getSelection(); if (rich && s.rangeCount && rich.contains(s.anchorNode)) richRange = s.getRangeAt(0).cloneRange(); });
+function mfWrap(latex, display){
+  const w = document.createElement('span'); w.className = 'mfw' + (display ? ' disp' : ''); w.contentEditable = 'false';
+  const mf = new MathfieldElement(); mf.value = latex; try { mf.smartFence = true; } catch {}
+  mf.addEventListener('keydown', e => e.stopPropagation());
+  w.append(mf); return w;
+}
+function fillRich(rich, src){
+  rich.innerHTML = ''; let last = 0; src = String(src || '');
+  const addText = t => { t.split('\n').forEach((line, i) => { if (i) rich.append(document.createElement('br')); if (line) rich.append(document.createTextNode(line)); }); };
+  for (const m of src.matchAll(MATH_RE)) {
+    let pre = src.slice(last, m.index), disp = m[1] != null || m[2] != null;
+    if (disp) pre = pre.replace(/\n$/, '');
+    addText(pre); rich.append(mfWrap(m[1] ?? m[2] ?? m[3] ?? m[4], disp));
+    last = m.index + m[0].length;
+    if (disp && src[last] === '\n') last++;
+  }
+  addText(src.slice(last));
+}
+function serializeRich(rich){
+  let out = '';
+  const walk = n => { for (const c of n.childNodes) {
+    if (c.nodeType === 3) out += c.nodeValue.replace(/\u00a0/g, ' ').replace(/\u200b/g, '');
+    else if (c.nodeName === 'BR') out += '\n';
+    else if (c.classList?.contains('mfw')) { const v = c.querySelector('math-field')?.value || ''; if (c.classList.contains('disp')) { if (out && !out.endsWith('\n')) out += '\n'; out += `$$${v}$$\n`; } else out += `$${v}$`; }
+    else if (c.nodeName === 'DIV' || c.nodeName === 'P') { if (out && !out.endsWith('\n')) out += '\n'; walk(c); }
+    else walk(c);
+  } };
+  walk(rich);
+  return out.replace(/\n+$/, '');
+}
+
+$('#insp').addEventListener('click', e => {
+  const t = e.target.closest('button'); if (!t) return;
+  const list = [...sel].map(blk).filter(Boolean); if (!list.length) return;
+  const all = f => { list.forEach(b => { f(b); drawBlock(b); }); commit(); };
+  if (t.dataset.tab) { inspTab[list[0].kind] = t.dataset.tab; commit(); renderInspector(); return; }
+  if (t.dataset.size) { all(b => { if (b.kind !== 'image') b.size = +t.dataset.size; }); renderInspector(); return; }
+  if (t.dataset.ink != null) { all(b => b.ink = t.dataset.ink || null); setPressed(t, '[data-ink]'); return; }
+  if (t.dataset.fill) { all(b => b.fill = t.dataset.fill); setPressed(t, '[data-fill]'); return; }
+  if (t.dataset.align) { all(b => b.align = t.dataset.align); setPressed(t, '[data-align]'); return; }
+  const a = t.dataset.i; if (!a) return;
+  if (a === 'close') { setSel([]); return; }
+  if (a === 'del') return deleteSel();
+  if (a === 'dup') return duplicateSel();
+  if (a === 'front') { all(b => b.z = maxZ() + 1); return; }
+  if (a === 'back') { const mn = W().blocks.reduce((m, b) => Math.min(m, b.z || 1), 1); all(b => b.z = mn - 1); return; }
+  if (a === 'lock') { const v = list.length > 1 ? true : !list[0].locked; all(b => b.locked = v); renderInspector(); return; }
+  if (a === 'unlock') { all(b => b.locked = false); return; }
+  if (a === 'ok') { all(b => { b.unsure = false; delete b.note; }); renderInspector(); return; }
+  if (a === 'draw') { openPad({ kind: 'replace', id: list[0].id }); return; }
+  if (a === 'kbd') { try { const mf = document.querySelector('.mfmain'); mf.focus(); window.mathVirtualKeyboard.show(); } catch {} return; }
+  if (a === 'reconvert') { const b = list[0]; openImport([dataURLtoFile(b.src, 'photo.jpg')], { keepPhoto: false, near: b }); return; }
+  if (a === 'al') { const x = Math.min(...list.map(b => b.x)); all(b => b.x = x); return; }
+  if (a === 'at') { const y = Math.min(...list.map(b => b.y)); all(b => b.y = y); return; }
+  if (a === 'dv') {
+    const s = [...list].sort((p, q) => p.y - q.y); const hs = s.map(b => els.get(b.id).offsetHeight);
+    const top = s[0].y, bottom = s.at(-1).y + hs.at(-1), gap = Math.max(G / 2, (bottom - top - hs.reduce((p, q) => p + q, 0)) / (s.length - 1));
+    let y = top; s.forEach((b, i) => { b.y = snapV(y); y += hs[i] + gap; drawBlock(b); }); commit(); return;
+  }
+});
+$('#insp').addEventListener('input', e => { if (e.target.id === 'opR') { const b = blk([...sel][0]); b.op = +e.target.value; drawBlock(b); commitSoon(); } });
+function setPressed(t, q){ t.parentElement.querySelectorAll(q).forEach(x => x.setAttribute('aria-pressed', x === t)); }
+
+/* ---------- popovers ---------- */
+function openPop(anchor, html, align = 'left'){
+  const p = $('#pop'); p.innerHTML = html; p.hidden = false;
+  const r = anchor.getBoundingClientRect(), pr = p.getBoundingClientRect();
+  let left = align === 'right' ? r.right - pr.width : r.left;
+  let top = r.bottom + 8; if (top + pr.height > innerHeight - 8) top = r.top - pr.height - 8;
+  p.style.left = clamp(left, 8, innerWidth - pr.width - 8) + 'px'; p.style.top = Math.max(8, top) + 'px';
+  p._anchor = anchor;
+}
+function closePop(){ $('#pop').hidden = true; }
+document.addEventListener('pointerdown', e => { const p = $('#pop'); if (!p.hidden && !p.contains(e.target) && !p._anchor?.contains(e.target)) closePop(); });
+
+const ago = t => { const s = (Date.now() - t) / 1000; return s < 60 ? 'now' : s < 3600 ? Math.round(s / 60) + ' min' : s < 86400 ? Math.round(s / 3600) + ' h' : Math.round(s / 86400) + ' d'; };
+function wsMenu(){
+  openPop($('#wsName'), `<div class="lbl">Workspaces</div>
+    ${[...S.workspaces].sort((a, b) => b.updated - a.updated).map(w => `<button class="mi" data-ws="${w.id}" aria-current="${w.id === S.activeId}"><span class="swatch-btn" style="background:${w.bg};width:18px;height:18px;border-radius:5px"></span><span>${esc(w.name)}<small>${w.blocks.length} block${w.blocks.length === 1 ? '' : 's'}</small></span><span class="meta">${ago(w.updated)}</span></button>`).join('')}
+    <hr><button class="mi" data-m="new">${icon('plus')}<span>New empty workspace</span></button>
+    <button class="mi" data-m="dupws">${icon('dup')}<span>Duplicate this workspace</span></button>
+    <button class="mi" data-m="open">${icon('open')}<span>Open a saved workspace…</span></button>
+    <button class="mi" data-m="delws" style="color:var(--danger)">${icon('trash')}<span>Delete this workspace</span></button>`);
+}
+function saveMenu(){
+  openPop($('#saveBtn'), `
+    <button class="mi" data-m="savews">${icon('save')}<span>Save workspace<small>.json — reopens here with every position, size and colour</small></span></button>
+    <button class="mi" data-m="md">${icon('md')}<span>Export Markdown<small>.md — text with $LaTeX$, in reading order</small></span></button>
+    <button class="mi" data-m="pdf">${icon('pdf')}<span>Export PDF…<small>As on screen, or typeset as a LaTeX document</small></span></button>
+    <button class="mi" data-m="tex">${icon('tex')}<span>Export LaTeX source<small>.tex — compiles with pdflatex or in Overleaf</small></span></button>
+    <hr><button class="mi" data-m="copymd">${icon('copy')}<span>Copy as Markdown</span></button>
+    <button class="mi" data-m="open">${icon('open')}<span>Open a saved workspace…</span></button>`, 'right');
+}
+function surfMenu(){
+  const w = W(), custom = !SURFACES.some(s => s[1] === w.bg);
+  openPop($('#surfBtn'), `<div class="lbl">Workspace colour</div>
+    <div class="swatches">${SURFACES.map(([n, c]) => `<button class="sw" data-bg="${c}" style="background:${c}" aria-pressed="${w.bg === c}" title="${n}" aria-label="${n}"></button>`).join('')}
+      <label class="sw custom" title="Custom colour" aria-pressed="${custom}"><input type="color" id="bgPick" value="${w.bg}" aria-label="Custom colour"></label></div>
+    <div class="lbl">Note lettering</div>
+    <div style="padding:2px 10px 10px"><div class="seg wide"><button data-font="serif" aria-pressed="${w.font !== 'sans'}" style="font-family:KaTeX_Main,serif;font-size:15px">LaTeX serif</button><button data-font="sans" aria-pressed="${w.font === 'sans'}">Sans</button></div></div>`);
+}
+function helpMenu(){
+  openPop($('#helpBtn'), `<div class="lbl">Shortcuts</div><div class="keys">
+    <span><kbd>Double-click</kbd></span><span>new text / edit block</span>
+    <span><kbd>T</kbd> <kbd>M</kbd></span><span>text / formula tool</span>
+    <span><kbd>I</kbd></span><span>import a photo of notes</span>
+    <span><kbd>P</kbd></span><span>handwrite a formula</span>
+    <span><kbd>Space</kbd>+drag</span><span>pan (or two-finger scroll)</span>
+    <span><kbd>Ctrl</kbd>+wheel</span><span>zoom at cursor</span>
+    <span><kbd>Shift</kbd>+click</span><span>add to selection</span>
+    <span><kbd>Arrows</kbd></span><span>nudge selection</span>
+    <span><kbd>Ctrl D</kbd></span><span>duplicate</span>
+    <span><kbd>Ctrl Z</kbd></span><span>undo</span>
+    <span><kbd>Ctrl S</kbd></span><span>save workspace file</span>
+    <span><kbd>G</kbd></span><span>snap to crosses on/off</span>
+    <span><kbd>1</kbd> / <kbd>0</kbd></span><span>fit / 100%</span></div>
+    <div class="hint" style="padding:4px 10px 8px">Paste an image anywhere to convert it.</div>`);
+}
+$('#pop').addEventListener('click', e => {
+  const t = e.target.closest('button'); if (!t) return;
+  if (t.dataset.ws) { closePop(); return switchWs(t.dataset.ws); }
+  if (t.dataset.bg) { W().bg = t.dataset.bg; applySurface(); persist(); setPressed(t, '[data-bg]'); return; }
+  if (t.dataset.font) { W().font = t.dataset.font; applySurface(); persist(); setPressed(t, '[data-font]'); setTimeout(() => W().blocks.forEach(drawBlock), 50); return; }
+  const m = t.dataset.m; if (!m) return; closePop();
+  ({ new: () => { const w = newWorkspace(); S.workspaces.push(w); switchWs(w.id); $('#wsName').select(); },
+     dupws: () => { const w = JSON.parse(JSON.stringify(W())); w.id = uid(); w.name = W().name + ' (copy)'; w.updated = Date.now(); S.workspaces.push(w); switchWs(w.id); toast('Workspace duplicated'); },
+     delws: () => confirmBox(`Delete “${esc(W().name)}”?`, 'Its blocks are removed from this browser. Save it as a file first if you may want it back.', 'Delete', () => {
+       S.workspaces = S.workspaces.filter(w => w.id !== S.activeId); if (!S.workspaces.length) S.workspaces.push(newWorkspace()); switchWs(S.workspaces[0].id); }),
+     open: () => $('#fileWs').click(), savews: saveWorkspaceFile, md: exportMarkdown, pdf: openPdfDialog, tex: exportTex,
+     copymd: async () => { try { await navigator.clipboard.writeText(toMarkdown()); toast('Markdown copied'); } catch { showText('Markdown', toMarkdown()); } } })[m]?.();
+});
+$('#pop').addEventListener('input', e => { if (e.target.id === 'bgPick') { W().bg = e.target.value; applySurface(); persist(); } });
+
+function switchWs(id){
+  commit(); S.activeId = id; sel.clear();
+  for (const el of els.values()) el.remove(); els.clear();
+  $('#wsName').value = W().name; applySurface(); renderAll(); renderInspector(); resetHistory(); persist();
+  if (W().blocks.length && W().view.z === 1 && W().view.x === 0 && W().view.y === 0) requestAnimationFrame(() => fit());
+}
+
+/* ---------- modal helpers ---------- */
+function openModal(html, kind = '', wide = false){ const m = $('#modal'); m.innerHTML = html; m.dataset.kind = kind; m.classList.toggle('wide', wide); m.onclick = null; $('#scrim').hidden = false; }
+function closeModal(){ if (importBusy) return; if (pad) { pad.ctl?.abort(); pad = null; } lhost?.remove(); lhost = null; $('#scrim').hidden = true; $('#modal').innerHTML = ''; $('#modal').dataset.kind = ''; }
+$('#scrim').addEventListener('pointerdown', e => { if (e.target === $('#scrim')) closeModal(); });
+function confirmBox(title, text, okLabel, onOk){
+  openModal(`<div class="mh"><h2 class="grow">${title}</h2></div><p>${text}</p><div class="mf"><button class="btn outline" data-c="no">Cancel</button><button class="btn primary" data-c="yes" style="background:var(--danger)">${okLabel}</button></div>`);
+  $('#modal').onclick = e => { const c = e.target.closest('[data-c]')?.dataset.c; if (!c) return; closeModal(); $('#modal').onclick = null; if (c === 'yes') onOk(); };
+}
+function showText(title, text, why){
+  openModal(`<div class="mh"><h2 class="grow">${esc(title)}</h2><button class="ibtn" data-c="x" aria-label="Close">${icon('x')}</button></div><p>${why || "Downloads aren't available in this view — copy the text instead."}</p><textarea class="code" style="min-height:260px" readonly>${esc(text)}</textarea><div class="mf"><button class="btn primary" data-c="copy">${icon('copy')}Copy</button></div>`);
+  $('#modal').onclick = async e => { const c = e.target.closest('[data-c]')?.dataset.c; if (c === 'x') closeModal(); if (c === 'copy') { const ta = $('#modal textarea'); ta.select(); try { await navigator.clipboard.writeText(text); toast('Copied'); } catch { document.execCommand('copy'); toast('Copied'); } } };
+}
+let toastT = 0;
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2600); }
+
+/* ---------- files: save / open / export ---------- */
+let dl = null;
+const slug = s => (s || 'workspace').toLowerCase().replace(/[^a-z0-9äöüß]+/gi, '-').replace(/^-|-$/g, '') || 'workspace';
+async function saveFile(name, data, mime, textFallback){
+  if (dl) {
+    try { await dl.save({ filename: name, data }); toast('Saved ' + name); return; }
+    catch (e) {
+      if (e?.code === 'declined') return;
+      if (e?.code === 'rate_limited') { toast('A save is already waiting for your answer'); return; }
+      if ((e?.code === 'rejected_extension' || e?.code === 'extension_not_enabled') && typeof data === 'string') { showText(name, data, `This view can't save <b>.${esc(name.split('.').pop())}</b> files — copy the text and paste it into a file of that name${/\.tex$/.test(name) ? ' or a new Overleaf project' : ''}.`); return; }
+    }
+  }
+  try {
+    const blob = data instanceof Blob ? data : new Blob([data], { type: mime });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000); toast('Downloading ' + name);
+  } catch { if (textFallback) showText(name, data); else toast('Downloads are blocked in this view'); }
+}
+function saveWorkspaceFile(){
+  commit();
+  const data = JSON.stringify({ format: 'symvolo-workspace', version: 1, saved: new Date().toISOString(), workspace: W() }, null, 1);
+  saveFile(slug(W().name) + '.symvolo.json', data, 'application/json', !dl);
+}
+$('#fileWs').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    const j = JSON.parse(await f.text()); const w = j.workspace || j;
+    if (!Array.isArray(w.blocks)) throw 0;
+    w.blocks = w.blocks.filter(b => b && ['text', 'math', 'image'].includes(b.kind)).map(b => ({ ...b, id: b.id || uid(), x: +b.x || 0, y: +b.y || 0, content: b.content ?? '' }));
+    const nw = { ...newWorkspace(w.name || f.name.replace(/\.((symvolo|crux)\.)?json$/i, '')), ...w, id: uid(), updated: Date.now(), view: w.view || { x: 0, y: 0, z: 1 } };
+    S.workspaces.push(nw); switchWs(nw.id); toast(`Opened “${nw.name}”`);
+  } catch { toast('That file is not a Symvolo workspace'); }
+});
+function readingOrder(list){ return [...list].sort((a, b) => (Math.round(a.y / (G * 2)) - Math.round(b.y / (G * 2))) || (a.x - b.x)); }
+function toMarkdown(){
+  const bl = readingOrder(W().blocks); const parts = [];
+  if (!bl.some(b => b.kind === 'text' && /^#\s/.test(b.content))) parts.push('# ' + W().name);
+  for (const b of bl) {
+    if (b.kind === 'math') parts.push('$$\n' + b.content.trim() + '\n$$');
+    else if (b.kind === 'text') { if (b.content.trim()) parts.push(b.content.trim()); }
+    else parts.push('<!-- photo of the original notes -->');
+  }
+  return parts.join('\n\n') + '\n';
+}
+function exportMarkdown(){ commit(); saveFile(slug(W().name) + '.md', toMarkdown(), 'text/markdown', !dl); }
+async function exportScreenPDF(){
+  const list = W().blocks; if (!list.length) return toast('Nothing to export yet');
+  toast('Preparing the PDF…');
+  if (!window.html2canvas) await loadScript('vendor/html2canvas.min.js');
+  if (!window.jspdf) await loadScript('vendor/jspdf.umd.min.js');
+  if (!window.html2canvas || !window.jspdf) return toast('The PDF tools could not load');
+  const bb = bbox(list), pad = 48, ox = bb.x0 - pad, oy = bb.y0 - pad, sw = Math.ceil(bb.x1 - bb.x0 + pad * 2), sh = Math.ceil(bb.y1 - bb.y0 + pad * 2);
+  const sheet = document.createElement('div'); sheet.className = 'sheet';
+  Object.assign(sheet.style, { width: sw + 'px', height: sh + 'px', backgroundColor: W().bg, backgroundImage: crossURL, backgroundSize: G + 'px ' + G + 'px', backgroundPosition: `${-(ox % G)}px ${-(oy % G)}px` });
+  for (const b of list) { const c = els.get(b.id).cloneNode(true); c.classList.remove('sel'); c.style.left = (b.x - ox) + 'px'; c.style.top = (b.y - oy) + 'px'; sheet.append(c); }
+  document.body.append(sheet);
+  try {
+    await document.fonts.ready;
+    const scale = Math.min(2.2, 9000 / Math.max(sw, sh));
+    const canvas = await html2canvas(sheet, { scale, backgroundColor: W().bg, logging: false, width: sw, height: sh, windowWidth: Math.max(sw, innerWidth), windowHeight: Math.max(sh, innerHeight) });
+    const { jsPDF } = window.jspdf; const land = sw > sh * 1.15;
+    const pdf = new jsPDF({ orientation: land ? 'landscape' : 'portrait', unit: 'pt', format: 'a4', compress: true });
+    const PW = pdf.internal.pageSize.getWidth(), PH = pdf.internal.pageSize.getHeight();
+    const k = PW / sw, pageH = Math.floor(PH / k * scale), rgb = W().bg.match(/\w\w/g).map(h => parseInt(h, 16));
+    for (let y = 0, i = 0; y < canvas.height; y += pageH, i++) {
+      if (i) pdf.addPage();
+      pdf.setFillColor(...rgb); pdf.rect(0, 0, PW, PH, 'F');
+      const h = Math.min(pageH, canvas.height - y), part = document.createElement('canvas'); part.width = canvas.width; part.height = h;
+      part.getContext('2d').drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+      pdf.addImage(part.toDataURL('image/jpeg', .92), 'JPEG', 0, 0, PW, h / scale * k);
+    }
+    pdf.setProperties({ title: W().name });
+    await saveFile(slug(W().name) + '.pdf', pdf.output('blob'), 'application/pdf');
+  } catch (e) { console.error(e); toast('Could not build the PDF'); }
+  finally { sheet.remove(); }
+}
+
+/* ---------- import: photo → LaTeX ---------- */
+let imp = { files: [], keepPhoto: true, near: null }, importBusy = false, impCtl = null;
+function dataURLtoFile(d, name){ const [h, b] = d.split(','), bin = atob(b), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new File([u], name, { type: h.match(/:(.*?);/)[1] }); }
+function openImport(files, opts = {}){
+  closePop(); imp = { files: [], keepPhoto: opts.keepPhoto ?? true, near: opts.near || null, tier: imp.tier || 'default', hint: imp.hint || '' };
+  drawImport(); if (files) addImpFiles(files);
+}
+function addImpFiles(files){
+  const max = ai.max || 5;
+  for (const f of files) { if (!f.type?.startsWith('image/')) continue; if (imp.files.length >= max) { toast(`Up to ${max} photos at a time`); break; } imp.files.push({ file: f, url: URL.createObjectURL(f) }); }
+  drawImport();
+}
+function drawImport(){
+  const can = !!ai.mode;
+  openModal(`<div class="mh"><div class="grow"><h2>Import notes</h2><p style="margin-top:4px">A photo of a notebook page, handout or a school board becomes text and LaTeX blocks laid out like the original.</p></div><button class="ibtn" data-c="x" aria-label="Close">${icon('x')}</button></div>
+    ${imp.files.length ? `<div class="thumbs">${imp.files.map((f, i) => `<div class="thumb"><img src="${f.url}" alt=""><button data-c="rm" data-n="${i}" aria-label="Remove">${icon('x')}</button></div>`).join('')}<div class="drop" data-c="pick" style="aspect-ratio:4/3;padding:8px">${icon('plus')}<span style="font-size:13px">Add photo</span></div></div>`
+      : `<div class="drop" data-c="pick" id="dropZ">${icon('scan', 'style="width:28px;height:28px"')}<strong>Drop photos here or choose files</strong><span style="font-size:13px">JPG, PNG or WebP · you can also paste an image anywhere</span></div>`}
+    <div class="opts">
+      <label class="check"><input type="checkbox" id="keepPh" ${imp.keepPhoto ? 'checked' : ''}>Keep the photo on the workspace next to the notes</label>
+      <div class="row"><label style="width:auto;color:var(--muted);font-size:13px">Reading</label><div class="seg"><button data-tier="default" aria-pressed="${imp.tier === 'default'}">Standard</button><button data-tier="complex" aria-pressed="${imp.tier === 'complex'}">Careful · slower</button></div></div>
+      <input class="field" id="impHint" placeholder="What's on it? Optional — e.g. “Analysis II lecture, German”" value="${esc(imp.hint)}">
+    </div>
+    ${aiNoteHtml(true)}
+    <div class="mf"><button class="btn outline" data-c="x">Cancel</button>
+      ${can ? '' : `<button class="btn outline" data-c="place" ${imp.files.length ? '' : 'disabled'}>Place photos only</button>`}
+      <button class="btn primary" data-c="go" ${imp.files.length && can ? '' : 'disabled'}>${icon('scan')}Convert to LaTeX</button></div>`, 'import');
+  const m = $('#modal');
+  m.onclick = e => {
+    const t = e.target.closest('[data-c],[data-tier]'); if (!t) return;
+    if (t.dataset.tier) { imp.tier = t.dataset.tier; setPressed(t, '[data-tier]'); return; }
+    const c = t.dataset.c;
+    if (c === 'x') closeModal(); else if (c === 'pick') $('#fileImg').click();
+    else if (c === 'rm') { imp.files.splice(+t.dataset.n, 1); drawImport(); }
+    else if (c === 'go') runImport(); else if (c === 'place') placePhotosOnly();
+  };
+  m.querySelector('#keepPh').onchange = e => imp.keepPhoto = e.target.checked;
+  m.querySelector('#impHint').oninput = e => imp.hint = e.target.value;
+  bindCode(m);
+  const dz = m.querySelector('.drop');
+  m.ondragover = e => { e.preventDefault(); dz?.classList.add('over'); };
+  m.ondragleave = () => dz?.classList.remove('over');
+  m.ondrop = e => { e.preventDefault(); e.stopPropagation(); addImpFiles(e.dataTransfer.files); };
+}
+$('#fileImg').addEventListener('change', e => { const f = [...e.target.files]; e.target.value = ''; if ($('#scrim').hidden) openImport(f); else addImpFiles(f); });
+
+function imgSize(url){ return new Promise(res => { const i = new Image(); i.onload = () => res({ w: i.naturalWidth, h: i.naturalHeight, img: i }); i.onerror = () => res({ w: 4, h: 3, img: null }); i.src = url; }); }
+function shrink(img, max = 1600){ const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', .85); }
+async function layoutRegions(){
+  const sizes = await Promise.all(imp.files.map(f => imgSize(f.url)));
+  const r = stage.getBoundingClientRect(); const start = imp.near ? { x: imp.near.x + (els.get(imp.near.id)?.offsetWidth || 400) + G * 3, y: imp.near.y } : toWorld(r.width * .12, r.height * .14);
+  const bb = bbox(W().blocks);
+  let x0 = snapV(start.x), y = snapV(start.y);
+  if (bb && !imp.near) { x0 = snapV(bb.x0); y = snapV(bb.y1 + G * 4); }
+  const RW = 900, PW = 420, regs = [];
+  for (const s of sizes) {
+    const aspect = s.h / s.w, photoX = x0, notesX = imp.keepPhoto ? x0 + PW + G * 3 : x0;
+    regs.push({ s, photo: { x: photoX, y, w: PW, h: PW * aspect }, x: notesX, y, w: RW, h: RW * aspect });
+    y = snapV(y + Math.max(RW * aspect, imp.keepPhoto ? PW * aspect : 0) + G * 5);
+  }
+  return regs;
+}
+async function placePhotosOnly(){
+  imp.keepPhoto = true; const regs = await layoutRegions(), ids = [];
+  regs.forEach(r => { if (r.s.img) ids.push(addBlock('image', r.photo.x, r.photo.y, '', { src: shrink(r.s.img), w: r.photo.w, z: 0 }).id); });
+  closeModal(); commit(); setSel(ids); requestAnimationFrame(() => fit(ids.map(blk)));
+}
+async function runImport(){
+  if (!ai.mode || !imp.files.length) return;
+  importBusy = true;
+  const regs = await layoutRegions(); const added = [], made = [];
+  $('#modal').innerHTML = `<div class="mh"><h2 class="grow">Reading your notes</h2></div>
+    <div class="progress"><div class="spin"></div><div><b id="pStat">Looking at ${imp.files.length > 1 ? 'the photos' : 'the photo'}…</b><span id="pSub">This usually takes 20–60 seconds. Blocks appear on the workspace as they're read.</span></div></div>
+    <div class="mf"><button class="btn outline" id="stopBtn">Stop</button></div>`;
+  $('#stopBtn').onclick = () => impCtl?.abort();
+  if (imp.keepPhoto) regs.forEach(r => { if (r.s.img) made.push(addBlock('image', r.photo.x, r.photo.y, '', { src: shrink(r.s.img), w: r.photo.w, z: 0, op: 1 })); });
+  const place = o => {
+    if (!o || typeof o.content !== 'string' || !o.content.trim()) return;
+    const r = regs[clamp(o.img | 0, 0, regs.length - 1)], f = v => clamp(+v || 0, 0, 1);
+    const kind = o.kind === 'math' ? 'math' : 'text';
+    const b = addBlock(kind, r.x + f(o.x) * r.w, r.y + f(o.y) * r.h, o.content.trim(), { w: Math.max(192, Math.round(f(o.w || .5) * r.w / (G / 2)) * (G / 2)), unsure: !!o.unsure, note: o.note ? String(o.note).slice(0, 160) : undefined });
+    added.push(b); $('#pStat') && ($('#pStat').textContent = `${added.length} block${added.length === 1 ? '' : 's'} read`);
+  };
+  let pend = '';
+  const eat = line => { line = line.trim().replace(/,$/, ''); if (!line || line.startsWith('```')) return; try { place(JSON.parse(line)); } catch {} };
+  impCtl = new AbortController(); let err = null;
+  try {
+    await ask('import', { images: imp.files.map(f => f.file), hint: imp.hint, tier: imp.tier, signal: impCtl.signal,
+      onText: ({ delta }) => { const ls = (pend + delta).split('\n'); pend = ls.pop(); ls.forEach(eat); } });
+  } catch (e) { err = e; }
+  eat(pend);
+  importBusy = false;
+  if (err && !added.length) {
+    made.forEach(b => { W().blocks = W().blocks.filter(x => x !== b); }); renderAll();
+    aiFail(err); drawImport(); toast(aiMsg(err.code)); return;
+  }
+  closeModal();
+  await new Promise(r => requestAnimationFrame(r));
+  deOverlap(added);
+  commit();
+  const all = [...made, ...added]; setSel(added.map(b => b.id));
+  requestAnimationFrame(() => fit(all, 1));
+  const unsure = added.filter(b => b.unsure).length;
+  toast(err ? `Stopped after ${added.length} blocks` : `Added ${added.length} blocks${unsure ? ` — ${unsure} marked to check` : ''}`);
+}
+function deOverlap(list){
+  const sorted = [...list].sort((a, b) => a.y - b.y || a.x - b.x), placed = [];
+  for (const b of sorted) {
+    const el = els.get(b.id); const w = el.offsetWidth, h = el.offsetHeight;
+    for (let guard = 0; guard < 60; guard++) {
+      const hit = placed.find(p => b.x < p.x + p.w + 8 && b.x + w + 8 > p.x && b.y < p.y + p.h + 6 && b.y + h + 6 > p.y);
+      if (!hit) break; b.y = snapV(hit.y + hit.h + G / 2);
+    }
+    drawBlock(b); placed.push({ x: b.x, y: b.y, w, h });
+  }
+}
+
+/* ---------- AI: Claude inside claude.ai, or the Vercel function ---------- */
+let P = null, ai = { mode: undefined, max: 5 };
+const CODE_KEY = 'symvolo.code';
+const getCode = () => { try { return localStorage.getItem(CODE_KEY) || ''; } catch { return ''; } };
+const setCode = v => { try { localStorage.setItem(CODE_KEY, v); } catch {} };
+async function initAI(){
+  try { P = await import('./prompts.js'); } catch { P = null; }
+  let s = null; try { s = await window.claude?.use?.('sample') || null; } catch {}
+  if (s && P) { try { const l = await s.limits(); if (l?.images) { ai = { mode: 'claude', s, max: l.images.maxCount || 5 }; return aiChanged(); } } catch {} }
+  if (P) { try { const r = await fetch('api/health', { cache: 'no-store' }); if (r.ok) { const j = await r.json(); if (j.ok) { ai = { mode: 'server', needsCode: !!j.needsCode, max: j.maxImages || 5 }; return aiChanged(); } } } catch {} }
+  ai = { mode: null, max: 5 }; aiChanged();
+}
+function aiChanged(){
+  const k = $('#modal').dataset.kind;
+  if ($('#scrim').hidden) return;
+  if (k === 'import' && !importBusy) drawImport();
+  if (k === 'pad') padAI();
+}
+function aiNoteHtml(withPhotosHint){
+  if (ai.mode === undefined) return '<div class="note">Connecting…</div>';
+  if (ai.mode === null) return `<div class="note">Reading handwriting needs Claude: open Symvolo inside Claude, or deploy it with its server function (see the README).${withPhotosHint ? ' You can still place the photos on the workspace and type the notes beside them.' : ''}</div>`;
+  if (ai.mode === 'server' && ai.needsCode) return `<input class="field" id="accCode" type="password" autocomplete="off" placeholder="Access code for this Symvolo server" value="${esc(getCode())}">`;
+  return '';
+}
+function bindCode(m){ const c = m.querySelector('#accCode'); if (c) c.oninput = () => setCode(c.value.trim()); }
+function aiMsg(code){
+  return ({ cancelled: 'Stopped.', not_granted: 'Claude was not allowed for this page, so it could not read the image.', rate_limited: 'Too many requests right now — try again in a minute.',
+    image_rejected: 'That image could not be used — try a JPG or PNG under 20 MB.', too_large: 'The images are too large — try fewer or smaller photos.', refused: 'Claude could not transcribe this image.',
+    sampling_disabled: 'Claude is not available on this account.', bad_code: 'That access code is not right.', not_configured: 'The server has no Anthropic API key configured.',
+    network: 'Could not reach the Symvolo server.', unavailable: 'Reading handwriting is not available here.' })[code] || 'Something went wrong reading the image. Try again.';
+}
+function aiFail(e){ if (e?.code === 'not_granted' || e?.code === 'sampling_disabled') ai = { mode: null, max: 5 }; if (e?.code === 'bad_code') setCode(''); }
+async function blobToB64(blob){
+  const bmp = await createImageBitmap(blob), k = Math.min(1, 1568 / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(bmp.width * k)); c.height = Math.max(1, Math.round(bmp.height * k));
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(bmp, 0, 0, c.width, c.height);
+  const png = blob.type === 'image/png' && blob.size < 1.5e6, type = png ? 'image/png' : 'image/jpeg';
+  return { media_type: type, data: c.toDataURL(type, .88).split(',')[1] };
+}
+async function ask(task, { images, hint = '', tier = 'default', signal, onText }){
+  if (ai.mode === 'claude') {
+    const prompt = task === 'import' ? P.importPrompt({ n: images.length, hint }) : P.handwritingPrompt();
+    return (await ai.s(prompt, { images, signal, modelTier: tier, cache: false, onText })).text;
+  }
+  if (ai.mode === 'server') {
+    const imgs = await Promise.all(images.map(blobToB64));
+    let res;
+    try { res = await fetch('api/recognize', { method: 'POST', signal, headers: { 'content-type': 'application/json', 'x-access-code': getCode() }, body: JSON.stringify({ task, hint: String(hint).slice(0, 300), tier, images: imgs }) }); }
+    catch { throw { code: signal?.aborted ? 'cancelled' : 'network' }; }
+    if (!res.ok) { let j = {}; try { j = await res.json(); } catch {} throw { code: j.error || (res.status === 413 ? 'too_large' : 'upstream_error') }; }
+    const rd = res.body.getReader(), dec = new TextDecoder(); let text = '';
+    try { for (;;) { const { done, value } = await rd.read(); if (done) break; const d = dec.decode(value, { stream: true }); if (!d) continue; text += d; onText?.({ text, delta: d }); } }
+    catch { throw { code: signal?.aborted ? 'cancelled' : 'upstream_error', text }; }
+    if (!text.trim()) throw { code: 'upstream_error' };
+    return text;
+  }
+  throw { code: 'unavailable' };
+}
+
+/* ---------- handwriting pad ---------- */
+let pad = null;
+function drawStrokes(g, strokes, color){
+  for (const st of strokes) {
+    const p = st.pts; if (!p.length) continue;
+    g.globalCompositeOperation = st.mode === 'erase' ? 'destination-out' : 'source-over';
+    g.strokeStyle = color; g.lineWidth = st.w; g.lineCap = 'round'; g.lineJoin = 'round';
+    g.beginPath(); g.moveTo(p[0][0], p[0][1]);
+    if (p.length === 1) g.lineTo(p[0][0] + .1, p[0][1] + .1);
+    for (let i = 1; i < p.length - 1; i++) g.quadraticCurveTo(p[i][0], p[i][1], (p[i][0] + p[i + 1][0]) / 2, (p[i][1] + p[i + 1][1]) / 2);
+    if (p.length > 1) g.lineTo(p.at(-1)[0], p.at(-1)[1]);
+    g.stroke();
+  }
+  g.globalCompositeOperation = 'source-over';
+}
+function openPad(target){
+  closePop();
+  if (target.kind === 'new' && target.x == null) { const r = stage.getBoundingClientRect(); Object.assign(target, toWorld(r.width * .42, r.height * .4)); }
+  pad = { target, strokes: [], mode: 'pen', latex: '', alts: [], ctl: null, busy: false };
+  const insLabel = target.kind === 'replace' ? 'Replace formula' : target.kind === 'inline' ? 'Insert in text' : 'Add to workspace';
+  openModal(`<div class="mh"><div class="grow"><h2>Handwrite a formula</h2><p style="margin-top:4px">Draw a symbol or an equation with your mouse, pen or finger — Symvolo turns it into LaTeX.</p></div><button class="ibtn" data-p="x" aria-label="Close">${icon('x')}</button></div>
+    <div class="padbar"><div class="seg"><button data-p="pen" aria-pressed="true">${icon('pen')}Pen</button><button data-p="erase" aria-pressed="false">${icon('eraser')}Eraser</button></div><span class="grow"></span>
+      <button class="ibtn" data-p="undo" aria-label="Undo stroke" title="Undo stroke (Ctrl+Z)">${icon('undo')}</button><button class="ibtn" data-p="clear" aria-label="Clear drawing" title="Clear">${icon('trash')}</button></div>
+    <div class="padwrap"><canvas id="padC" aria-label="Drawing area"></canvas><div class="padph" id="padPh">Draw here — larger is easier to read</div></div>
+    <div id="padAI"></div>
+    <div class="padres" id="padRes" hidden><div class="padprev" id="padPrev"></div>
+      <input class="field code-in" id="padTex" spellcheck="false" aria-label="LaTeX — edit if needed">
+      <div class="tb" id="padAlt"></div></div>
+    <div class="mf"><button class="btn outline" data-p="x">Cancel</button><button class="btn outline" data-p="rec" id="padRec">${icon('scan')}Recognize</button><button class="btn primary" data-p="ins" id="padIns" disabled>${icon('check')}${insLabel}</button></div>`, 'pad', true);
+  const c = $('#padC'), dpr = devicePixelRatio || 1;
+  c.width = c.clientWidth * dpr; c.height = c.clientHeight * dpr;
+  const g = c.getContext('2d'); g.scale(dpr, dpr);
+  const ink = getComputedStyle(root).getPropertyValue('--fg').trim() || '#111';
+  const redraw = () => { g.clearRect(0, 0, c.width, c.height); drawStrokes(g, pad.strokes, ink); $('#padPh').hidden = pad.strokes.length > 0; };
+  pad.redraw = redraw;
+  let cur = null;
+  const pt = e => { const r = c.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  c.onpointerdown = e => { e.preventDefault(); c.setPointerCapture(e.pointerId); cur = { mode: pad.mode, w: pad.mode === 'erase' ? 24 : (e.pointerType === 'pen' ? 2.8 : 3.2), pts: [pt(e)] }; pad.strokes.push(cur); redraw(); };
+  c.onpointermove = e => { if (!cur) return; for (const ce of (e.getCoalescedEvents?.() || [e])) cur.pts.push(pt(ce)); redraw(); };
+  c.onpointerup = c.onpointercancel = () => { cur = null; };
+  const m = $('#modal');
+  m.onclick = e => {
+    const t = e.target.closest('[data-p],[data-alt]'); if (!t) return;
+    if (t.dataset.alt != null) { const a = pad.alts[+t.dataset.alt]; pad.alts[+t.dataset.alt] = pad.latex; padShow(a, pad.alts); return; }
+    const a = t.dataset.p;
+    if (a === 'x') closeModal();
+    else if (a === 'pen' || a === 'erase') { pad.mode = a; setPressed(t, '[data-p=pen],[data-p=erase]'); }
+    else if (a === 'undo') { pad.strokes.pop(); redraw(); }
+    else if (a === 'clear') { pad.strokes = []; redraw(); }
+    else if (a === 'rec') padRecognize();
+    else if (a === 'ins') padInsert();
+  };
+  $('#padTex').oninput = e => { pad.latex = e.target.value; $('#padPrev').innerHTML = tex(pad.latex || '\\square', true); $('#padIns').disabled = !pad.latex.trim(); };
+  padAI();
+}
+function padAI(){ const box = $('#padAI'); if (!box || !pad) return; box.innerHTML = aiNoteHtml(false); bindCode(box); $('#padRec').disabled = !ai.mode; }
+async function padBlob(){
+  const pens = pad.strokes.filter(s => s.mode === 'pen'); if (!pens.length) return null;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const s of pens) for (const [x, y] of s.pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  const m = 24; x0 -= m; y0 -= m; x1 += m; y1 += m;
+  const k = clamp(1100 / Math.max(x1 - x0, y1 - y0), 1, 3), w = Math.round((x1 - x0) * k), h = Math.round((y1 - y0) * k);
+  const layer = document.createElement('canvas'); layer.width = w; layer.height = h;
+  const lg = layer.getContext('2d'); lg.setTransform(k, 0, 0, k, -x0 * k, -y0 * k); drawStrokes(lg, pad.strokes, '#000');
+  const out = document.createElement('canvas'); out.width = w; out.height = h;
+  const og = out.getContext('2d'); og.fillStyle = '#fff'; og.fillRect(0, 0, w, h); og.drawImage(layer, 0, 0);
+  return new Promise(res => out.toBlob(res, 'image/png'));
+}
+function parseHW(text){
+  const t = String(text || '').trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
+  try {
+    const o = JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)); const l = String(o.latex || '').trim();
+    return { latex: l, alts: (Array.isArray(o.alternatives) ? o.alternatives : []).map(a => String(a).trim()).filter(a => a && a !== l).slice(0, 3) };
+  } catch { return { latex: t.replace(/^\$+|\$+$/g, '').trim(), alts: [] }; }
+}
+function padShow(latex, alts){
+  pad.latex = latex; pad.alts = alts;
+  $('#padRes').hidden = false; $('#padTex').value = latex; $('#padPrev').innerHTML = tex(latex || '\\square', true);
+  $('#padAlt').innerHTML = alts.length ? `<span class="hint" style="align-self:center">Or did you mean</span>${alts.map((a, i) => `<button class="btn sm outline altb" data-alt="${i}" title="${esc(a)}">${tex(a, false)}</button>`).join('')}` : '';
+  $('#padIns').disabled = !latex.trim();
+}
+async function padRecognize(){
+  if (!pad || pad.busy || !ai.mode) return;
+  const blob = await padBlob(); if (!blob) { toast('Draw something first'); return; }
+  const btn = $('#padRec'); pad.busy = true; btn.disabled = true; btn.innerHTML = '<span class="spin" style="width:16px;height:16px;border-width:2px"></span>Reading…';
+  const p = pad; p.ctl = new AbortController();
+  try {
+    const r = parseHW(await ask('handwriting', { images: [blob], tier: 'default', signal: p.ctl.signal }));
+    if (pad !== p) return;
+    if (!r.latex) toast('Could not read the drawing — try writing a little larger'); else padShow(r.latex, r.alts);
+  } catch (e) { if (pad === p && e?.code !== 'cancelled') { aiFail(e); toast(aiMsg(e?.code)); padAI(); } }
+  finally { if (pad === p) { p.busy = false; btn.disabled = !ai.mode; btn.innerHTML = `${icon('scan')}Recognize again`; } }
+}
+function padInsert(){
+  if (!pad) return; const l = pad.latex.trim(), t = pad.target; if (!l) return;
+  if (t.kind === 'replace') { const b = blk(t.id); closeModal(); if (b) { b.content = l; drawBlock(b); commit(); setSel([b.id]); } return; }
+  if (t.kind === 'inline') {
+    closeModal(); const rich = $('#rich'); if (!rich) return;
+    const w = mfWrap(l, false);
+    if (richRange && rich.contains(richRange.startContainer)) { richRange.deleteContents(); richRange.insertNode(w); } else rich.append(w);
+    rich.dispatchEvent(new Event('input')); return;
+  }
+  closeModal(); const b = addBlock('math', t.x, t.y, l); commit(); setSel([b.id]);
+}
+
+/* ---------- LaTeX document: model, .tex source, typeset pages ---------- */
+function buildDoc(){
+  const items = []; let list = null;
+  const endList = () => { list = null; };
+  const textPart = s => { for (const raw of s.split('\n')) { const l = raw.trim(); let m;
+    if (!l) { endList(); continue; }
+    if ((m = l.match(/^(#{1,3})\s+(.*)/))) { endList(); items.push({ t: 'sec', level: m[1].length, text: m[2] }); }
+    else if ((m = l.match(/^[-*•]\s+(.*)/) || l.match(/^\d+[.)]\s+(.*)/))) { const ord = /^\d/.test(l); if (!list || list.ordered !== ord) { list = { t: 'list', ordered: ord, items: [] }; items.push(list); } list.items.push(m[1]); }
+    else { endList(); items.push({ t: 'p', text: l }); } } };
+  for (const b of readingOrder(W().blocks)) {
+    endList();
+    if (b.kind === 'image') { if (pdfOpt.photos) items.push({ t: 'fig', src: b.src }); continue; }
+    if (b.kind === 'math') { if (b.content.trim()) items.push({ t: 'eq', tex: b.content.trim() }); continue; }
+    const src = b.content || ''; let last = 0;
+    for (const m of src.matchAll(/\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]/g)) { textPart(src.slice(last, m.index)); endList(); items.push({ t: 'eq', tex: (m[1] ?? m[2]).trim() }); last = m.index + m[0].length; }
+    textPart(src.slice(last));
+  }
+  let autoTitle = '';
+  const h1 = items.filter(i => i.t === 'sec' && i.level === 1);
+  if (h1.length === 1 && items[0] === h1[0]) { autoTitle = h1[0].text.replace(/\*\*|==/g, ''); items.shift(); }
+  const secs = items.filter(i => i.t === 'sec'), min = Math.min(9, ...secs.map(s => s.level));
+  secs.forEach(s => s.level = Math.min(3, s.level - min + 1));
+  return { items, autoTitle: autoTitle || W().name };
+}
+const docTitle = d => (W().docTitle ?? '').trim() || d.autoTitle;
+const UNI = { '≈': '\\approx', '≤': '\\le', '≥': '\\ge', '≠': '\\neq', '→': '\\to', '←': '\\leftarrow', '⇒': '\\Rightarrow', '⇔': '\\Leftrightarrow', '∞': '\\infty', '±': '\\pm', '×': '\\times', '·': '\\cdot', '…': '\\dots', '∈': '\\in', '∀': '\\forall', '∃': '\\exists', '∑': '\\sum', '∫': '\\int', '∂': '\\partial', '∇': '\\nabla', 'α': '\\alpha', 'β': '\\beta', 'γ': '\\gamma', 'δ': '\\delta', 'ε': '\\varepsilon', 'θ': '\\theta', 'λ': '\\lambda', 'μ': '\\mu', 'π': '\\pi', 'σ': '\\sigma', 'φ': '\\varphi', 'ω': '\\omega', 'Δ': '\\Delta', 'Σ': '\\Sigma', 'Ω': '\\Omega' };
+const UNI_RE = new RegExp('[' + Object.keys(UNI).join('') + ']', 'g');
+const texText = s => s.replace(/[\\{}#$%&_^~]/g, c => ({ '\\': '\\textbackslash{}', '{': '\\{', '}': '\\}', '#': '\\#', '$': '\\$', '%': '\\%', '&': '\\&', '_': '\\_', '^': '\\^{}', '~': '\\~{}' })[c]).replace(UNI_RE, c => `$${UNI[c]}$`);
+function inlTex(s){
+  let out = '', last = 0;
+  for (const m of s.matchAll(/\$([^$\n]+?)\$|\\\((.+?)\\\)|`([^`]+)`|\*\*(.+?)\*\*|==(.+?)==|\*([^*\s][^*]*?)\*/g)) {
+    out += texText(s.slice(last, m.index));
+    if (m[1] != null || m[2] != null) out += `$${(m[1] ?? m[2]).trim()}$`;
+    else if (m[3] != null) out += `\\texttt{${texText(m[3])}}`;
+    else if (m[4] != null) out += `\\textbf{${inlTex(m[4])}}`;
+    else out += `\\emph{${inlTex(m[5] ?? m[6])}}`;
+    last = m.index + m[0].length;
+  }
+  return out + texText(s.slice(last));
+}
+const ENV_RE = /\\begin\{(align|gather|multline|equation|flalign|alignat)\*?\}/;
+function toTex(){
+  const d = buildDoc(), num = pdfOpt.numEq, star = pdfOpt.numSec ? '' : '*';
+  const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const body = d.items.map(it => {
+    if (it.t === 'sec') return `\\${['section', 'subsection', 'subsubsection'][it.level - 1]}${star}{${inlTex(it.text)}}`;
+    if (it.t === 'p') return inlTex(it.text);
+    if (it.t === 'list') { const e = it.ordered ? 'enumerate' : 'itemize'; return `\\begin{${e}}\n${it.items.map(x => '  \\item ' + inlTex(x)).join('\n')}\n\\end{${e}}`; }
+    if (it.t === 'eq') { if (ENV_RE.test(it.tex)) return it.tex; const e = num ? 'equation' : 'equation*'; return `\\begin{${e}}\n  ${it.tex.replace(/\n/g, '\n  ')}\n\\end{${e}}`; }
+    return '% [photo of the original notes — add \\includegraphics{...} here]';
+  }).join('\n\n');
+  return `% Created with Symvolo on ${date}
+\\documentclass[11pt,a4paper]{article}
+\\usepackage[T1]{fontenc}
+\\usepackage[utf8]{inputenc}
+\\usepackage{lmodern}
+\\usepackage[margin=2.5cm]{geometry}
+\\usepackage{amsmath,amssymb,mathtools}
+\\usepackage{parskip}
+\\usepackage{enumitem}
+\\usepackage{hyperref}
+
+\\title{${inlTex(docTitle(d))}}
+\\author{${inlTex(pdfOpt.author || '')}}
+\\date{${date}}
+
+\\begin{document}
+\\maketitle
+
+${body}
+
+\\end{document}
+`;
+}
+function exportTex(){ commit(); if (!W().blocks.length) return toast('Nothing to export yet'); saveFile(slug(W().name) + '.tex', toTex(), 'application/x-tex', true); }
+function inlineHtml(s){
+  const math = [];
+  const t = s.replace(/\$([^$\n]+?)\$|\\\((.+?)\\\)/g, (m, a, b) => { math.push(tex(a ?? b, false)); return `\u0000${math.length - 1}\u0000`; });
+  return inl(esc(t)).replace(/\u0000(\d+)\u0000/g, (_, i) => math[i]);
+}
+let lhost = null;
+const mkPage = () => { const p = document.createElement('div'); p.className = 'lpage'; p.innerHTML = '<div class="lbody"></div><div class="lfoot"></div>'; return p; };
+async function buildLatexPages(){
+  const d = buildDoc(); const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  lhost?.remove(); lhost = document.createElement('div'); lhost.className = 'lhost'; document.body.append(lhost);
+  const nodes = []; const mk = (cls, html) => { const n = document.createElement('div'); n.className = 'lit ' + cls; n.innerHTML = html; nodes.push(n); return n; };
+  mk('ltitle', `<h1>${inlineHtml(docTitle(d))}</h1>${pdfOpt.author ? `<div class="lauthor">${esc(pdfOpt.author)}</div>` : ''}<div class="ldate">${date}</div>`);
+  const sc = [0, 0, 0]; let eqn = 0;
+  for (const it of d.items) {
+    if (it.t === 'sec') { sc[it.level - 1]++; for (let i = it.level; i < 3; i++) sc[i] = 0; const n = sc.slice(0, it.level).join('.'); mk(`lsec lsec${it.level}`, `${pdfOpt.numSec ? `<span class="lnum">${n}</span>` : ''}${inlineHtml(it.text)}`); }
+    else if (it.t === 'p') mk('lp', inlineHtml(it.text));
+    else if (it.t === 'list') mk('llist', `<${it.ordered ? 'ol' : 'ul'}>${it.items.map(x => `<li>${inlineHtml(x)}</li>`).join('')}</${it.ordered ? 'ol' : 'ul'}>`);
+    else if (it.t === 'eq') { const tagged = pdfOpt.numEq && !ENV_RE.test(it.tex) && !/\\tag\b|\\notag|\\nonumber/.test(it.tex); mk('leq', tex(tagged ? `${it.tex}\\tag{${++eqn}}` : it.tex, true)); }
+    else mk('lfig', `<img src="${it.src}" alt="">`);
+  }
+  const meas = mkPage(); lhost.append(meas); const mb = meas.firstChild; mb.style.height = 'auto';
+  nodes.forEach(n => mb.append(n));
+  await document.fonts.ready; await Promise.all([...mb.querySelectorAll('img')].map(i => i.decode().catch(() => {})));
+  const hs = nodes.map(n => n.offsetHeight); meas.remove();
+  const CAP = 913, pages = []; let cur = null, used = 0;
+  const next = () => { cur = mkPage(); lhost.append(cur); pages.push(cur); used = 0; };
+  next();
+  nodes.forEach((n, i) => {
+    const keep = n.classList.contains('lsec') && i + 1 < nodes.length ? Math.min(hs[i + 1], 200) : 0;
+    if (used > 0 && used + hs[i] + keep > CAP) next();
+    cur.firstChild.append(n); used += hs[i];
+  });
+  pages.forEach((p, i) => p.lastChild.textContent = i + 1);
+  return pages;
+}
+
+/* ---------- PDF export dialog ---------- */
+let pdfOpt = { mode: 'latex', numEq: true, numSec: true, photos: false, author: '' };
+try { Object.assign(pdfOpt, JSON.parse(localStorage.getItem('symvolo.pdf') || '{}')); } catch {}
+const savePdfOpt = () => { try { localStorage.setItem('symvolo.pdf', JSON.stringify(pdfOpt)); } catch {} };
+let prevT = 0;
+function openPdfDialog(){
+  commit(); closePop();
+  if (!W().blocks.length) return toast('Nothing to export yet');
+  const d = buildDoc(), L = pdfOpt.mode === 'latex';
+  openModal(`<div class="mh"><h2 class="grow">Export PDF</h2><button class="ibtn" data-x aria-label="Close">${icon('x')}</button></div>
+    <div class="modes">
+      <button class="modecard" data-mode="screen" aria-pressed="${!L}">${icon('screen')}<span><b>As on screen</b><small>Your workspace with its colours and layout, cut into A4 pages.</small></span></button>
+      <button class="modecard" data-mode="latex" aria-pressed="${L}">${icon('tex')}<span><b>LaTeX document</b><small>Typeset as an article: title, numbered sections and equations, Computer Modern type, in reading order.</small></span></button>
+    </div>
+    <div id="lxOpts" class="opts" ${L ? '' : 'hidden'}>
+      <div class="two"><input class="field" id="lxTitle" placeholder="Title" value="${esc(docTitle(d))}" aria-label="Title"><input class="field" id="lxAuthor" placeholder="Author (optional)" value="${esc(pdfOpt.author)}" aria-label="Author"></div>
+      <div class="row" style="gap:18px">
+        <label class="check"><input type="checkbox" data-o="numSec" ${pdfOpt.numSec ? 'checked' : ''}>Number sections</label>
+        <label class="check"><input type="checkbox" data-o="numEq" ${pdfOpt.numEq ? 'checked' : ''}>Number equations</label>
+        <label class="check"><input type="checkbox" data-o="photos" ${pdfOpt.photos ? 'checked' : ''}>Include photos</label></div>
+      <div class="lprev" id="lxPrev"><div class="loading">Typesetting the preview…</div></div>
+      <div class="hint">Blocks are read top to bottom, left to right. Headings become sections, formula blocks become equations. Need it compiled by real LaTeX? Use <b>Download .tex</b> and open it in Overleaf.</div>
+    </div>
+    <div class="mf"><button class="btn outline" data-x>Cancel</button>${L ? `<button class="btn outline" data-tex>${icon('tex')}Download .tex</button>` : ''}<button class="btn primary" data-go>${icon('pdf')}Export PDF</button></div>`, 'pdf', true);
+  const m = $('#modal');
+  m.onclick = e => {
+    const t = e.target.closest('button'); if (!t) return;
+    if (t.dataset.mode) { pdfOpt.mode = t.dataset.mode; savePdfOpt(); openPdfDialog(); return; }
+    if (t.hasAttribute('data-x')) closeModal();
+    if (t.hasAttribute('data-tex')) exportTex();
+    if (t.hasAttribute('data-go')) { const L2 = pdfOpt.mode === 'latex'; if (!L2) { closeModal(); exportScreenPDF(); } else exportLatexPDF(t); }
+  };
+  if (!L) return;
+  const refresh = () => { clearTimeout(prevT); prevT = setTimeout(renderPreview, 250); };
+  m.querySelector('#lxTitle').oninput = e => { W().docTitle = e.target.value; persist(); refresh(); };
+  m.querySelector('#lxAuthor').oninput = e => { pdfOpt.author = e.target.value; savePdfOpt(); refresh(); };
+  m.querySelectorAll('[data-o]').forEach(c => c.onchange = () => { pdfOpt[c.dataset.o] = c.checked; savePdfOpt(); refresh(); });
+  renderPreview();
+}
+async function renderPreview(){
+  const box = $('#lxPrev'); if (!box) return;
+  const pages = await buildLatexPages(); if (!$('#lxPrev')) return;
+  box.innerHTML = '';
+  pages.forEach(p => { const w = document.createElement('div'); w.className = 'pv'; w.append(p.cloneNode(true)); box.append(w); });
+  const n = document.createElement('div'); n.className = 'pvn'; n.textContent = pages.length + (pages.length === 1 ? ' page' : ' pages'); box.append(n);
+}
+async function exportLatexPDF(btn){
+  btn.disabled = true; const label = btn.innerHTML; btn.innerHTML = '<span class="spin" style="width:16px;height:16px;border-width:2px;border-top-color:currentColor"></span>Typesetting…';
+  try {
+    if (!window.html2canvas) await loadScript('vendor/html2canvas.min.js');
+    if (!window.jspdf) await loadScript('vendor/jspdf.umd.min.js');
+    if (!window.html2canvas || !window.jspdf) { toast('The PDF tools could not load'); return; }
+    const pages = await buildLatexPages(); const shot = document.createElement('div'); shot.className = 'lhost'; document.body.append(shot);
+    const { jsPDF } = window.jspdf, pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4', compress: true });
+    const PW = pdf.internal.pageSize.getWidth(), PH = pdf.internal.pageSize.getHeight();
+    for (let i = 0; i < pages.length; i++) {
+      shot.replaceChildren(pages[i]);
+      const c = await html2canvas(pages[i], { scale: 2.6, backgroundColor: '#ffffff', logging: false, width: 794, height: 1123, windowWidth: Math.max(innerWidth, 900), windowHeight: Math.max(innerHeight, 1200) });
+      if (i) pdf.addPage();
+      pdf.addImage(c.toDataURL('image/jpeg', .93), 'JPEG', 0, 0, PW, PH);
+    }
+    shot.remove();
+    pdf.setProperties({ title: docTitle(buildDoc()), author: pdfOpt.author || '', creator: 'Symvolo' });
+    const blob = pdf.output('blob'); closeModal();
+    await saveFile(slug(W().name) + '.pdf', blob, 'application/pdf');
+  } catch (e) { console.error(e); toast('Could not build the PDF'); }
+  finally { if (document.body.contains(btn)) { btn.disabled = false; btn.innerHTML = label; } }
+}
+
+/* paste & drop on the stage */
+addEventListener('paste', e => {
+  if (editing(e.target) || !$('#scrim').hidden) return;
+  const files = [...(e.clipboardData?.files || [])].filter(f => f.type.startsWith('image/'));
+  if (files.length) { e.preventDefault(); openImport(files); return; }
+  const t = e.clipboardData?.getData('text/plain');
+  if (t && t.trim()) { e.preventDefault(); const r = stage.getBoundingClientRect(), p = toWorld(r.width * .4, r.height * .4); const b = addBlock(/^\s*\\|^\s*\$\$/.test(t) && !/\n\n/.test(t) ? 'math' : 'text', p.x, p.y, t.trim().replace(/^\$\$|\$\$$/g, '')); commit(); setSel([b.id]); }
+});
+stage.addEventListener('dragover', e => e.preventDefault());
+stage.addEventListener('drop', e => { e.preventDefault(); const f = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/')); if (f.length) openImport(f); else { const j = [...e.dataTransfer.files].find(f => /json$/i.test(f.name)); if (j) { const dt = new DataTransfer(); dt.items.add(j); $('#fileWs').files = dt.files; $('#fileWs').dispatchEvent(new Event('change')); } } });
+
+/* ---------- wiring ---------- */
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-act]')?.dataset.act; if (!a) return;
+  if (a === 'import') openImport(); else if (a === 'pad') openPad({ kind: 'new' }); else if (a === 'add-math') createCentered('math'); else if (a === 'add-text') createCentered('text');
+});
+document.querySelectorAll('.rail [data-tool]').forEach(b => b.onclick = () => setTool(b.dataset.tool));
+$('#snapBtn').onclick = toggleSnap;
+$('#undoBtn').onclick = undo; $('#redoBtn').onclick = redo;
+$('#saveBtn').onclick = () => $('#pop').hidden || $('#pop')._anchor !== $('#saveBtn') ? saveMenu() : closePop();
+$('#wsMenuBtn').onclick = () => $('#pop').hidden ? wsMenu() : closePop();
+$('#surfBtn').onclick = () => $('#pop').hidden ? surfMenu() : closePop();
+$('#helpBtn').onclick = () => $('#pop').hidden ? helpMenu() : closePop();
+$('#zoomIn').onclick = () => zoomStep(1.2); $('#zoomOut').onclick = () => zoomStep(1 / 1.2);
+$('#zoomVal').onclick = () => zoomAt(1, innerWidth / 2, innerHeight / 2);
+$('#fitBtn').onclick = () => fit();
+$('#fullBtn').onclick = async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else await root.requestFullscreen(); } catch { toast('Full screen is not allowed in this view'); } };
+const wsName = $('#wsName');
+wsName.oninput = () => { W().name = wsName.value || 'Untitled workspace'; W().updated = Date.now(); persist(); document.title = W().name + ' — Symvolo'; };
+wsName.onkeydown = e => { if (e.key === 'Enter') wsName.blur(); };
+addEventListener('resize', () => { if (!$('#pop').hidden) closePop(); });
+
+/* ---------- start ---------- */
+$('#snapBtn').setAttribute('aria-pressed', !!S.snap);
+setTool('select');
+wsName.value = W().name; document.title = W().name + ' — Symvolo';
+applySurface(); renderAll(); resetHistory();
+const v0 = W().view; if (W().blocks.length && v0.x === 0 && v0.y === 0 && v0.z === 1) requestAnimationFrame(() => fit());
+document.fonts?.ready.then(() => { for (const el of els.values()) el._key = null; W().blocks.forEach(drawBlock); });
+setTimeout(loadMathLive, 1200);
+(async () => {
+  try { dl = await window.claude?.use?.('downloads') || null; } catch { dl = null; }
+})();
+initAI();
+}
+</script>
+</body>
+</html>
