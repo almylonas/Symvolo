@@ -5,7 +5,7 @@
 ## Features
 
 - **Cross-grid workspace.** Full-screen canvas of small crosses. Pan, zoom to the cursor, fit to screen, and snap blocks to the crosses (toggle with `G`).
-- **Photos → LaTeX.** Drop, choose or paste photos of handwritten or printed notes, handouts, whiteboards or chalkboards (up to 5 at once). Text and formula blocks appear while Claude reads them, laid out like the original. Anything hard to read is outlined in orange with a note saying what is uncertain. You can keep the photo next to the notes.
+- **Photos → LaTeX, on your device or with Claude.** Drop, choose or paste photos of handwritten or printed notes, handouts, whiteboards or chalkboards (up to 5 at once). They become text and formula blocks laid out like the original. By default an **offline pipeline** reads them in the browser: it finds the lines, reads the text, tells formulas from prose and turns the formulas into LaTeX. Claude can be chosen instead for messy boards. Anything doubtful is outlined in orange with a note. You can keep the photo next to the notes.
 - **Handwriting → LaTeX, on your device.** Draw a symbol or an equation with a mouse, pen or finger (`P`). A small neural network (CoMER, 7 MB) reads it **in the browser, offline**, while you draw. No image leaves your machine. You get a live preview and editable LaTeX, then add it to the workspace. From the inspector you can also draw a replacement for a formula, or draw a formula into the middle of a sentence. Claude can be switched on as a more accurate engine (with up to three alternative readings).
 - **Two ways to edit.** Formulas: edit them directly, like an equation editor (MathLive, with an on-screen math keyboard), or as LaTeX code. Text: type directly, with formulas inside it that you click to edit, or edit the Markdown + `$LaTeX$` source.
 - **Free layout.** Drag, resize, multi-select (marquee or `Shift`+click), line up left or top edges, space blocks evenly, layer order, lock, duplicate, nudge with the arrow keys. Each block has its own size, ink colour and background (none, card or highlight).
@@ -32,21 +32,28 @@ The drawing pad uses [ink-on](https://github.com/kimseungdae/ink-on), an INT8 ON
 - **Accuracy is limited, so check the result.** On clean, deliberate writing it does well (9–10 of 10 simple formulas in our tests). On messy real handwriting it does much worse: ink-on reports 36% exactly right and 53% within one symbol on the CROHME 2014 test set. Every result is editable in the pad and later on the workspace.
 - **Symbols it knows (about 110):** digits, Latin letters, `+ - = < > ( ) [ ] \{ \}`, `\frac \sqrt ^ _`, `\sum \int \lim \log \sin \cos \tan`, `\alpha \beta \gamma \theta \lambda \mu \pi \sigma \phi \Delta \Pi`, `\infty \pm \times \div \cdot \leq \geq \neq \rightarrow \in \forall \exists`, `\ldots \cdots \prime`. Symbols outside this set (for example `\partial`, `\nabla`, most capital Greek letters) can't be recognised on-device.
 
-### Photos of notes and boards: Claude (optional)
+### Photos of notes and boards: on-device pipeline by default
 
-A whole page mixes prose, formulas and layout, which needs a large vision model. Photo conversion therefore uses Claude, if it's available and allowed:
+`vendor/ocr/pagereader.js` reads a photo in six steps, all in the browser:
 
-| Where Symvolo runs | Who reads the photos | Setup |
+1. **Clean.** Estimate and divide out uneven lighting and glare, flip chalkboards to dark-on-light, stretch the contrast.
+2. **Find lines.** PaddleOCR PP-OCRv5 text detection (DBNet), then join the word boxes on a line into line boxes.
+3. **Read lines.** PP-OCRv5 multilingual recognition (CTC), which gives characters with their positions and confidences. It handles umlauts and accents, so German or French notes work.
+4. **Text or maths?** Rules on each token: real words (≥3 letters, or common short words in English, German, French and Spanish) versus symbols, operators, digits and function names. A line becomes text, a formula, or text with inline `$…$` maths. Stacked pieces (numerator / bar / denominator) are merged.
+5. **Formulas → LaTeX.** The formula regions are cropped, thresholded, thinned and redrawn as pen strokes, then read by CoMER (the same model as the drawing pad). The text reading acts as a check: if CoMER's answer is much shorter than what was seen, or the line uses functions CoMER doesn't know (`dim`, `ker`, `det`, `exp`, `max`…), the LaTeX is built from the text reading instead and the block is flagged.
+6. **Layout.** Headings (larger writing), paragraphs and multi-line derivations (aligned at `=`), with positions taken from the photo.
+
+**How good is it?** On neat, print-style handwriting it gets most text and simple formulas right. In our tests that included $e^{x}=1+x+\frac{x^{2}}{2}$ and $\dim V=\dim\ker T+\dim\operatorname{im}T$ exactly, plus mixed lines like "Konvergenz für $|x|<R$". Cursive, small writing, crowded boards, matrices and large 2-D structures come out much rougher. Expect to fix a few symbols per photo. A photo takes about 5–20 s. The first use downloads about 40 MB of models (cached afterwards).
+
+For messy boards, Claude does far better. Choose it in the import dialog, or as the default under the gear button:
+
+| Where Symvolo runs | Who reads with "Claude" | Setup |
 |---|---|---|
 | Inside Claude (claude.ai artifact) | Claude on the viewer's own account. They are asked once for permission. | None |
 | Your own deployment (Vercel) | The `api/recognize` function, with your Anthropic API key | Set `ANTHROPIC_API_KEY` |
-| Anywhere else, or switched off | Nobody. Photos are placed on the workspace as they are. | — |
+| Anywhere else | Not available. On-device reading still works. | — |
 
-**Gear button (bottom left) → Recognition settings:**
-- *Drawn formulas:* **On device** (default) or **Claude**.
-- *Photos:* **Send photos to Claude to convert them**, on or off.
-
-With photos off and the pad on-device, Symvolo never contacts any external service. For a deployment that can never call Claude, simply don't set `ANTHROPIC_API_KEY`.
+**Gear button (bottom left) → Recognition settings:** *Drawn formulas* and *Photos*, each **On device** (default) or **Claude**. With both on device, Symvolo never contacts any external service. For a deployment that can never call Claude, simply don't set `ANTHROPIC_API_KEY`.
 
 The Claude prompts live in **`prompts.js`**, shared by the browser and the server, so both paths read notes the same way.
 
@@ -84,7 +91,7 @@ cp .env.example .env.local   # add your key
 npx vercel dev               # app + API on http://localhost:3000
 ```
 
-Without a key, `npx serve .` (or any static server) runs the whole app. On-device handwriting works; only photo conversion is off. Open it through a server, not as `file://`, because the app loads ES modules and WebAssembly.
+Without a key, `npx serve .` (or any static server) runs the whole app, including on-device handwriting and photo reading. Only the Claude options are unavailable. Open it through a server, not as `file://`, because the app loads ES modules and WebAssembly.
 
 ## Project structure
 
@@ -97,6 +104,8 @@ vendor/             self-hosted libraries and fonts (see vendor/NOTICE.md)
   ort/              ONNX Runtime Web, WebAssembly build
   inkon/            ink-on recognition engine (two small patches, listed in NOTICE.md)
   models/comer/     CoMER encoder/decoder (INT8 ONNX) + vocabulary
+  models/ppocr/     PP-OCRv5 mobile text detection + recognition + dictionary
+  ocr/pagereader.js offline photo → blocks pipeline
 vercel.json         function limits and headers
 .env.example        environment variables
 ```
@@ -166,7 +175,7 @@ Files saved by the earlier prototype (`.crux.json`) open too.
 
 ## Privacy
 
-Workspaces are kept in your browser (localStorage) and in the files you save. Drawn formulas are recognised on your device by default and never leave it. Images go to Claude only if you switch that on (photo conversion, or Claude as the drawing engine) and press **Convert** or **Recognize**. Only the images and the optional hint are sent. On your own deployment, they pass through your Vercel function to the Anthropic API under your key. Nothing is stored on the server.
+Workspaces are kept in your browser (localStorage) and in the files you save. Drawn formulas and photos are read on your device by default and never leave it. Images go to Claude only if you choose Claude (in the import dialog, the drawing pad or the gear menu) and press **Convert** or **Recognize**. Only the images and the optional hint are sent. On your own deployment, they pass through your Vercel function to the Anthropic API under your key. Nothing is stored on the server.
 
 ## Third-party code
 
@@ -176,4 +185,5 @@ All bundled in `vendor/`. Details and patch notes are in [`vendor/NOTICE.md`](ve
 - [html2canvas](https://html2canvas.hertzen.com) 1.4.1 and [jsPDF](https://github.com/parallax/jsPDF) 2.5.2 (MIT): PDF export
 - [ONNX Runtime Web](https://onnxruntime.ai) 1.24.3 (MIT): runs the recognition model
 - [ink-on](https://github.com/kimseungdae/ink-on) 0.1.0 and its CoMER model (Apache-2.0): on-device handwriting recognition
+- [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) PP-OCRv5 mobile models (Apache-2.0): on-device text detection and recognition
 - Geist and Geist Mono (SIL OFL), loaded from Google Fonts
