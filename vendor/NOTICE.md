@@ -9,6 +9,8 @@
 | `ort/` | [ONNX Runtime Web](https://github.com/microsoft/onnxruntime) (WASM build) | 1.24.3 | MIT |
 | `inkon/` | [ink-on](https://github.com/kimseungdae/ink-on): handwritten math recognition | 0.1.0 | Apache-2.0 (see `inkon/LICENSE`) |
 | `models/comer/` | INT8 ONNX export of [CoMER](https://github.com/Green-Wood/CoMER) (ECCV 2022), from the ink-on repository | — | Apache-2.0, as distributed by ink-on |
+| `models/ppocr/` | [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) PP-OCRv5 mobile text detection (`det_v5.ort`) and multilingual recognition (`rec_v5.onnx`, `dict_v5.txt`), from the npm package `pdfmarkdown-ppocrv5-models` 1.0.0 | v5 | Apache-2.0 (see `models/ppocr/LICENSE`) |
+| `ocr/pagereader.js` | Symvolo's own offline page reader (cleaning, line detection, text/formula separation, layout) | — | MIT |
 
 ## Changes made to ink-on
 
