@@ -934,6 +934,7 @@ $('#pop').addEventListener('click', e => {
   const t = e.target.closest('button'); if (!t) return;
   if (t.dataset.ws) { closePop(); return switchWs(t.dataset.ws); }
   if (t.dataset.hw) { setPref('hw', t.dataset.hw); setPressed(t, '[data-hw]'); return; }
+  if (t.dataset.ph) { setPref('photo', t.dataset.ph); setPressed(t, '[data-ph]'); return; }
   if (t.dataset.bg) { W().bg = t.dataset.bg; applySurface(); persist(); setPressed(t, '[data-bg]'); return; }
   if (t.dataset.font) { W().font = t.dataset.font; applySurface(); persist(); setPressed(t, '[data-font]'); setTimeout(() => W().blocks.forEach(drawBlock), 50); return; }
   const m = t.dataset.m; if (!m) return; closePop();
@@ -945,7 +946,6 @@ $('#pop').addEventListener('click', e => {
      copymd: async () => { try { await navigator.clipboard.writeText(toMarkdown()); toast('Markdown copied'); } catch { showText('Markdown', toMarkdown()); } } })[m]?.();
 });
 $('#pop').addEventListener('input', e => { if (e.target.id === 'bgPick') { W().bg = e.target.value; applySurface(); persist(); } });
-$('#pop').addEventListener('change', e => { if (e.target.id === 'prefPhotos') setPref('photos', e.target.checked); });
 
 function switchWs(id){
   commit(); S.activeId = id; sel.clear();
@@ -1059,30 +1059,33 @@ function addImpFiles(files){
   drawImport();
 }
 function drawImport(){
-  const can = !!ai.mode && prefs.photos;
+  const local = photoEngine() === 'local', can = local || !!ai.mode;
   openModal(`<div class="mh"><div class="grow"><h2>Import notes</h2><p style="margin-top:4px">A photo of a notebook page, handout or a school board becomes text and LaTeX blocks laid out like the original.</p></div><button class="ibtn" data-c="x" aria-label="Close">${icon('x')}</button></div>
     ${imp.files.length ? `<div class="thumbs">${imp.files.map((f, i) => `<div class="thumb"><img src="${f.url}" alt=""><button data-c="rm" data-n="${i}" aria-label="Remove">${icon('x')}</button></div>`).join('')}<div class="drop" data-c="pick" style="aspect-ratio:4/3;padding:8px">${icon('plus')}<span style="font-size:13px">Add photo</span></div></div>`
       : `<div class="drop" data-c="pick" id="dropZ">${icon('scan', 'style="width:28px;height:28px"')}<strong>Drop photos here or choose files</strong><span style="font-size:13px">JPG, PNG or WebP · you can also paste an image anywhere</span></div>`}
     <div class="opts">
       <label class="check"><input type="checkbox" id="keepPh" ${imp.keepPhoto ? 'checked' : ''}>Keep the photo on the workspace next to the notes</label>
-      <div class="row"><label style="width:auto;color:var(--muted);font-size:13px">Reading</label><div class="seg"><button data-tier="default" aria-pressed="${imp.tier === 'default'}">Standard</button><button data-tier="complex" aria-pressed="${imp.tier === 'complex'}">Careful · slower</button></div></div>
-      <input class="field" id="impHint" placeholder="What's on it? Optional — e.g. “Analysis II lecture, German”" value="${esc(imp.hint)}">
+      <div class="row" style="gap:10px"><label style="width:auto;color:var(--muted);font-size:13px">Read with</label>
+        <div class="seg"><button data-ph="local" aria-pressed="${local}">${icon('chip')}On device</button><button data-ph="claude" aria-pressed="${!local}" ${ai.mode ? '' : 'disabled'} title="${ai.mode ? 'More accurate; sends the photo to Claude' : "Claude isn't available here"}">Claude</button></div>
+        ${local ? '' : `<div class="seg"><button data-tier="default" aria-pressed="${imp.tier === 'default'}">Standard</button><button data-tier="complex" aria-pressed="${imp.tier === 'complex'}">Careful</button></div>`}</div>
+      ${local ? '' : `<input class="field" id="impHint" placeholder="What's on it? Optional — e.g. “Analysis II lecture, German”" value="${esc(imp.hint)}">`}
     </div>
-    ${ai.mode && !prefs.photos ? '<div class="note">Sending photos to Claude is switched off (gear button, bottom left), so photos are placed on the workspace as they are. Use <b>Draw</b> to write formulas on this device.</div>' : aiNoteHtml(true)}
+    ${local ? `<div class="note">${icon('chip', 'style="width:15px;height:15px;vertical-align:-3px"')} Read on this device — nothing is uploaded. Works best on neat, printed handwriting; cursive and crowded boards come out rougher, so check the blocks outlined in orange.${readerP ? '' : ' First use downloads the reading models (about 40 MB) once.'}</div>` : aiNoteHtml(true)}
     <div class="mf"><button class="btn outline" data-c="x">Cancel</button>
       ${can ? '' : `<button class="btn outline" data-c="place" ${imp.files.length ? '' : 'disabled'}>Place photos only</button>`}
       <button class="btn primary" data-c="go" ${imp.files.length && can ? '' : 'disabled'}>${icon('scan')}Convert to LaTeX</button></div>`, 'import');
   const m = $('#modal');
   m.onclick = e => {
-    const t = e.target.closest('[data-c],[data-tier]'); if (!t) return;
+    const t = e.target.closest('[data-c],[data-tier],[data-ph]'); if (!t) return;
     if (t.dataset.tier) { imp.tier = t.dataset.tier; setPressed(t, '[data-tier]'); return; }
+    if (t.dataset.ph) { if (!t.disabled) { setPref('photo', t.dataset.ph); drawImport(); } return; }
     const c = t.dataset.c;
     if (c === 'x') closeModal(); else if (c === 'pick') $('#fileImg').click();
     else if (c === 'rm') { imp.files.splice(+t.dataset.n, 1); drawImport(); }
     else if (c === 'go') runImport(); else if (c === 'place') placePhotosOnly();
   };
   m.querySelector('#keepPh').onchange = e => imp.keepPhoto = e.target.checked;
-  m.querySelector('#impHint').oninput = e => imp.hint = e.target.value;
+  const hintEl = m.querySelector('#impHint'); if (hintEl) hintEl.oninput = e => imp.hint = e.target.value;
   bindCode(m);
   const dz = m.querySelector('.drop');
   m.ondragover = e => { e.preventDefault(); dz?.classList.add('over'); };
@@ -1113,11 +1116,12 @@ async function placePhotosOnly(){
   closeModal(); commit(); setSel(ids); requestAnimationFrame(() => fit(ids.map(blk)));
 }
 async function runImport(){
-  if (!ai.mode || !prefs.photos || !imp.files.length) return;
+  const local = photoEngine() === 'local';
+  if ((!local && !ai.mode) || !imp.files.length) return;
   importBusy = true;
   const regs = await layoutRegions(); const added = [], made = [];
   $('#modal').innerHTML = `<div class="mh"><h2 class="grow">Reading your notes</h2></div>
-    <div class="progress"><div class="spin"></div><div><b id="pStat">Looking at ${imp.files.length > 1 ? 'the photos' : 'the photo'}…</b><span id="pSub">This usually takes 20–60 seconds. Blocks appear on the workspace as they're read.</span></div></div>
+    <div class="progress"><div class="spin"></div><div><b id="pStat">${local ? (readerP ? 'Starting…' : 'Loading the reading models…') : `Looking at ${imp.files.length > 1 ? 'the photos' : 'the photo'}…`}</b><span id="pSub">${local ? 'Reading on this device — usually 5–20 seconds per photo.' : "This usually takes 20–60 seconds. Blocks appear on the workspace as they're read."}</span></div></div>
     <div class="mf"><button class="btn outline" id="stopBtn">Stop</button></div>`;
   $('#stopBtn').onclick = () => impCtl?.abort();
   if (imp.keepPhoto) regs.forEach(r => { if (r.s.img) made.push(addBlock('image', r.photo.x, r.photo.y, '', { src: shrink(r.s.img), w: r.photo.w, z: 0, op: 1 })); });
@@ -1132,8 +1136,17 @@ async function runImport(){
   const eat = line => { line = line.trim().replace(/,$/, ''); if (!line || line.startsWith('```')) return; try { place(JSON.parse(line)); } catch {} };
   impCtl = new AbortController(); let err = null;
   try {
-    await ask('import', { images: imp.files.map(f => f.file), hint: imp.hint, tier: imp.tier, signal: impCtl.signal,
-      onText: ({ delta }) => { const ls = (pend + delta).split('\n'); pend = ls.pop(); ls.forEach(eat); } });
+    if (local) {
+      const reader = await loadReader().catch(() => { throw { code: 'local_failed' }; });
+      for (let i = 0; i < imp.files.length; i++) {
+        const pre = imp.files.length > 1 ? `Photo ${i + 1} of ${imp.files.length} · ` : '';
+        const blocks = await reader.read(imp.files[i].file, { signal: impCtl.signal, onProgress: msg => { const el = $('#pSub'); if (el) el.textContent = pre + msg; } });
+        blocks.forEach(b => place({ ...b, img: i }));
+      }
+    } else {
+      await ask('import', { images: imp.files.map(f => f.file), hint: imp.hint, tier: imp.tier, signal: impCtl.signal,
+        onText: ({ delta }) => { const ls = (pend + delta).split('\n'); pend = ls.pop(); ls.forEach(eat); } });
+    }
   } catch (e) { err = e; }
   eat(pend);
   importBusy = false;
@@ -1191,7 +1204,7 @@ function aiMsg(code){
   return ({ cancelled: 'Stopped.', not_granted: 'Claude was not allowed for this page, so it could not read the image.', rate_limited: 'Too many requests right now — try again in a minute.',
     image_rejected: 'That image could not be used — try a JPG or PNG under 20 MB.', too_large: 'The images are too large — try fewer or smaller photos.', refused: 'Claude could not transcribe this image.',
     sampling_disabled: 'Claude is not available on this account.', bad_code: 'That access code is not right.', not_configured: 'The server has no Anthropic API key configured.',
-    network: 'Could not reach the Symvolo server.', unavailable: 'Reading handwriting is not available here.' })[code] || 'Something went wrong reading the image. Try again.';
+    network: 'Could not reach the Symvolo server.', local_failed: "The on-device reader couldn't start in this browser.", unavailable: 'Reading handwriting is not available here.' })[code] || 'Something went wrong reading the image. Try again.';
 }
 function aiFail(e){ if (e?.code === 'not_granted' || e?.code === 'sampling_disabled') ai = { mode: null, max: 5 }; if (e?.code === 'bad_code') setCode(''); }
 async function blobToB64(blob){
@@ -1222,10 +1235,26 @@ async function ask(task, { images, hint = '', tier = 'default', signal, onText }
 }
 
 /* ---------- recognition preferences + on-device engine (ink-on / CoMER via ONNX Runtime Web) ---------- */
-const prefs = { hw: 'local', photos: true };
-try { Object.assign(prefs, JSON.parse(localStorage.getItem('symvolo.prefs') || '{}')); } catch {}
+const prefs = { hw: 'local', photo: 'local' };
+try { Object.assign(prefs, JSON.parse(localStorage.getItem('symvolo.prefs') || '{}')); delete prefs.photos; } catch {}
 function setPref(k, v){ prefs[k] = v; try { localStorage.setItem('symvolo.prefs', JSON.stringify(prefs)); } catch {} }
 const padEngine = () => (prefs.hw === 'claude' && ai.mode) ? 'claude' : 'local';
+const photoEngine = () => (prefs.photo === 'claude' && ai.mode) ? 'claude' : 'local';
+let readerP = null;
+function loadReader(){
+  if (readerP) return readerP;
+  readerP = (async () => {
+    const ink = await loadInk(), ort = await import('onnxruntime-web'), { createPageReader } = await import('./vendor/ocr/pagereader.js');
+    const base = new URL('vendor/models/ppocr/', location.href).href;
+    const fetchModel = async (name, as) => {
+      for (const u of [base + name, base + name + '.wasm']) { try { const r = await fetch(u); if (r.ok) return as === 'text' ? r.text() : r.arrayBuffer(); } catch {} }
+      throw new Error('Missing model file ' + name);
+    };
+    return createPageReader({ ort, ink, fetchModel });
+  })();
+  readerP.catch(e => { console.error('On-device page reader failed to start', e); readerP = null; });
+  return readerP;
+}
 let inkP = null;
 function loadInk(){
   if (inkP) return inkP;
@@ -1289,8 +1318,8 @@ function setMenu(){
     <div style="padding:2px 10px 6px"><div class="seg wide"><button data-hw="local" aria-pressed="${padEngine() === 'local'}">${icon('chip')}On device</button><button data-hw="claude" aria-pressed="${padEngine() === 'claude'}" ${can ? '' : 'disabled'}>Claude</button></div></div>
     <div class="hint" style="padding:0 10px 8px">On device is private and works offline, but makes more mistakes and knows about 110 symbols. Claude is more accurate and sends the drawing to Claude.</div>
     <hr><div class="lbl">Photos of notes and boards</div>
-    <label class="check" style="padding:4px 10px 6px"><input type="checkbox" id="prefPhotos" ${prefs.photos ? 'checked' : ''} ${can ? '' : 'disabled'}>Send photos to Claude to convert them</label>
-    <div class="hint" style="padding:0 10px 8px">${can ? 'Whole pages need Claude — the on-device model reads one drawn formula at a time. When off, photos are placed on the workspace as they are.' : "Claude isn't available here, so photos are placed on the workspace as they are."}</div>`);
+    <div style="padding:2px 10px 6px"><div class="seg wide"><button data-ph="local" aria-pressed="${photoEngine() === 'local'}">${icon('chip')}On device</button><button data-ph="claude" aria-pressed="${photoEngine() === 'claude'}" ${can ? '' : 'disabled'}>Claude</button></div></div>
+    <div class="hint" style="padding:0 10px 8px">On device reads text and formulas offline: good for neat, printed handwriting, weaker on cursive and complex layouts. Claude reads messy boards much better and sends the photo to Claude.</div>`);
 }
 /* ---------- handwriting pad ---------- */
 let pad = null;
