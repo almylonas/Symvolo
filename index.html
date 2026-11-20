@@ -213,6 +213,7 @@ input[type=range]{accent-color:var(--accent);flex:1}
 .padprev .katex-display{margin:0}
 .code-in{font-family:var(--mono);font-size:14px}
 .altb{font-size:15px}
+.refimg{display:block;max-width:100%;max-height:180px;border-radius:8px;border:1px solid var(--line);background:#000;object-fit:contain}
 .padstat{min-height:20px;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
 .padstat .spin{width:14px;height:14px;border-width:2px}
 .padstat.err{color:var(--danger)}
@@ -723,6 +724,7 @@ function renderInspector(){
     <button class="ibtn" data-i="lock" aria-pressed="${!!b.locked}" aria-label="${b.locked ? 'Unlock' : 'Lock position'}" title="${b.locked ? 'Unlock' : 'Lock position'}">${icon(b.locked ? 'lock' : 'unlock')}</button>
     <button class="ibtn" data-i="close" aria-label="Close">${icon('x')}</button>`;
   let h = '';
+  if (b.ref) h += `<div class="sec"><h4>From the photo</h4><img class="refimg" src="${b.ref}" alt="The part of the photo this block was read from"></div>`;
   if (b.unsure) h += `<div class="banner">${icon('warn')}<div><b>Check this block.</b> Part of the handwriting was hard to read${b.note ? `: ${esc(b.note)}` : '.'}<div style="margin-top:8px"><button class="btn sm outline" data-i="ok">${icon('check')}Looks right</button></div></div></div>`;
   if (b.kind === 'math') {
     h += `<div class="sec"><div class="seg wide" role="tablist"><button data-tab="visual" aria-pressed="${inspTab.math === 'visual'}">Visual</button><button data-tab="latex" aria-pressed="${inspTab.math === 'latex'}">LaTeX</button></div>
@@ -738,6 +740,7 @@ function renderInspector(){
   }
   h += styleSec([b]);
   h += `<div class="sec"><h4>Arrange</h4><div class="tb">
+    ${b.kind === 'math' ? `<button class="btn sm outline" data-i="totext">${icon('text')}Make text</button>` : b.kind === 'text' ? `<button class="btn sm outline" data-i="tomath">${icon('sigma')}Make formula</button>` : ''}
     <button class="btn sm outline" data-i="front">${icon('front')}Front</button>
     <button class="btn sm outline" data-i="back">${icon('back')}Back</button>
     <button class="btn sm outline" data-i="dup">${icon('dup')}Duplicate</button>
@@ -859,6 +862,12 @@ $('#insp').addEventListener('click', e => {
   if (a === 'del') return deleteSel();
   if (a === 'dup') return duplicateSel();
   if (a === 'front') { all(b => b.z = maxZ() + 1); return; }
+  if (a === 'totext' || a === 'tomath') {
+    const b = list[0];
+    if (a === 'totext') { b.kind = 'text'; b.content = b.content.trim() ? `$${b.content.trim()}$` : ''; b.w = Math.max(b.w || 0, (els.get(b.id)?.offsetWidth || 300) + 24); }
+    else { b.kind = 'math'; b.content = b.content.replace(/^#+\s*/gm, '').replace(/\$\$?/g, '').replace(/\*\*/g, '').trim(); }
+    drawBlock(b); commit(); renderInspector(); return;
+  }
   if (a === 'back') { const mn = W().blocks.reduce((m, b) => Math.min(m, b.z || 1), 1); all(b => b.z = mn - 1); return; }
   if (a === 'lock') { const v = list.length > 1 ? true : !list[0].locked; all(b => b.locked = v); renderInspector(); return; }
   if (a === 'unlock') { all(b => b.locked = false); return; }
@@ -1068,12 +1077,12 @@ function drawImport(){
       : `<div class="drop" data-c="pick" id="dropZ">${icon('scan', 'style="width:28px;height:28px"')}<strong>Drop photos here or choose files</strong><span style="font-size:13px">JPG, PNG or WebP · you can also paste an image anywhere</span></div>`}
     <div class="opts">
       <label class="check"><input type="checkbox" id="keepPh" ${imp.keepPhoto ? 'checked' : ''}>Keep the photo on the workspace next to the notes</label>
-      <div class="row" style="gap:10px"><label style="width:auto;color:var(--muted);font-size:13px">Read with</label>
-        <div class="seg"><button data-ph="local" aria-pressed="${local}">${icon('chip')}On device</button><button data-ph="claude" aria-pressed="${!local}" ${ai.mode ? '' : 'disabled'} title="${ai.mode ? 'More accurate; sends the photo to Claude' : "Claude isn't available here"}">Claude</button></div>
+      ${PHOTO_CLAUDE ? `<div class="row" style="gap:10px"><label style="width:auto;color:var(--muted);font-size:13px">Read with</label>
+        <div class="seg"><button data-ph="local" aria-pressed="${local}">${icon('chip')}On device</button><button data-ph="claude" aria-pressed="${!local}" ${ai.mode ? '' : 'disabled'}>Claude</button></div>
         ${local ? '' : `<div class="seg"><button data-tier="default" aria-pressed="${imp.tier === 'default'}">Standard</button><button data-tier="complex" aria-pressed="${imp.tier === 'complex'}">Careful</button></div>`}</div>
-      ${local ? '' : `<input class="field" id="impHint" placeholder="What's on it? Optional — e.g. “Analysis II lecture, German”" value="${esc(imp.hint)}">`}
+      ${local ? '' : `<input class="field" id="impHint" placeholder="What's on it? Optional" value="${esc(imp.hint)}">`}` : ''}
     </div>
-    ${local ? `<div class="note">${icon('chip', 'style="width:15px;height:15px;vertical-align:-3px"')} Read on this device — nothing is uploaded. Works best on neat, printed handwriting; cursive and crowded boards come out rougher, so check the blocks outlined in orange.${readerP ? '' : ' First use downloads the reading models (about 100 MB) once; after that it works offline.'}</div>` : aiNoteHtml(true)}
+    ${local ? `<div class="note">${icon('chip', 'style="width:15px;height:15px;vertical-align:-3px"')} Read on this device — nothing is uploaded. Works best on neat writing; messy boards come out rougher. Blocks outlined in orange need a check — select one to see the matching part of the photo next to it.${readerP ? '' : ' First use downloads the reading models (about 100 MB) once; after that it works offline.'}</div>` : aiNoteHtml(true)}
     <div class="mf"><button class="btn outline" data-c="x">Cancel</button>
       ${can ? '' : `<button class="btn outline" data-c="place" ${imp.files.length ? '' : 'disabled'}>Place photos only</button>`}
       <button class="btn primary" data-c="go" ${imp.files.length && can ? '' : 'disabled'}>${icon('scan')}Convert to LaTeX</button></div>`, 'import');
@@ -1098,6 +1107,15 @@ function drawImport(){
 $('#fileImg').addEventListener('change', e => { const f = [...e.target.files]; e.target.value = ''; if ($('#scrim').hidden) openImport(f); else addImpFiles(f); });
 
 function imgSize(url){ return new Promise(res => { const i = new Image(); i.onload = () => res({ w: i.naturalWidth, h: i.naturalHeight, img: i }); i.onerror = () => res({ w: 4, h: 3, img: null }); i.src = url; }); }
+// The part of the photo a block was read from (with a margin), small JPEG kept on the block.
+function cropRef(img, b){
+  const W = img.naturalWidth, H = img.naturalHeight, h = (b.h || .05) * H, m = .35 * h;
+  const x0 = Math.max(0, b.x * W - m), y0 = Math.max(0, b.y * H - m), x1 = Math.min(W, (b.x + b.w) * W + m), y1 = Math.min(H, b.y * H + h + m);
+  const k = Math.min(1.5, 640 / Math.max(1, x1 - x0)), c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round((x1 - x0) * k)); c.height = Math.max(1, Math.round((y1 - y0) * k));
+  c.getContext('2d').drawImage(img, x0, y0, x1 - x0, y1 - y0, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', .82);
+}
 function shrink(img, max = 1600){ const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', .85); }
 async function layoutRegions(){
   const sizes = await Promise.all(imp.files.map(f => imgSize(f.url)));
@@ -1132,7 +1150,7 @@ async function runImport(){
     if (!o || typeof o.content !== 'string' || !o.content.trim()) return;
     const r = regs[clamp(o.img | 0, 0, regs.length - 1)], f = v => clamp(+v || 0, 0, 1);
     const kind = o.kind === 'math' ? 'math' : 'text';
-    const b = addBlock(kind, r.x + f(o.x) * r.w, r.y + f(o.y) * r.h, o.content.trim(), { w: Math.max(192, Math.round(f(o.w || .5) * r.w / (G / 2)) * (G / 2)), unsure: !!o.unsure, note: o.note ? String(o.note).slice(0, 160) : undefined });
+    const b = addBlock(kind, r.x + f(o.x) * r.w, r.y + f(o.y) * r.h, o.content.trim(), { w: Math.max(192, Math.round(f(o.w || .5) * r.w / (G / 2)) * (G / 2)), unsure: !!o.unsure, note: o.note ? String(o.note).slice(0, 160) : undefined, ...(o.ref ? { ref: o.ref } : {}) });
     added.push(b); $('#pStat') && ($('#pStat').textContent = `${added.length} block${added.length === 1 ? '' : 's'} read`);
   };
   let pend = '';
@@ -1141,10 +1159,12 @@ async function runImport(){
   try {
     if (local) {
       const reader = await loadReader().catch(() => { throw { code: 'local_failed' }; });
+      if (reader.formulaEngine !== 'Texo' && !warnedTexo) { warnedTexo = true; toast(`The formula model (Texo) couldn't load${reader.texoError ? ': ' + reader.texoError.slice(0, 80) : ''} — using the simpler fallback`); }
       for (let i = 0; i < imp.files.length; i++) {
         const pre = imp.files.length > 1 ? `Photo ${i + 1} of ${imp.files.length} · ` : '';
         const blocks = await reader.read(imp.files[i].file, { signal: impCtl.signal, onProgress: msg => { const el = $('#pSub'); if (el) el.textContent = pre + msg; } });
-        blocks.forEach(b => place({ ...b, img: i }));
+        const img = regs[i]?.s?.img;
+        blocks.forEach(b => place({ ...b, img: i, ref: img ? cropRef(img, b) : undefined }));
       }
     } else {
       await ask('import', { images: imp.files.map(f => f.file), hint: imp.hint, tier: imp.tier, signal: impCtl.signal,
@@ -1242,12 +1262,13 @@ const prefs = { hw: 'local', photo: 'local' };
 try { Object.assign(prefs, JSON.parse(localStorage.getItem('symvolo.prefs') || '{}')); delete prefs.photos; } catch {}
 function setPref(k, v){ prefs[k] = v; try { localStorage.setItem('symvolo.prefs', JSON.stringify(prefs)); } catch {} }
 const padEngine = () => (prefs.hw === 'claude' && ai.mode) ? 'claude' : 'local';
-const photoEngine = () => (prefs.photo === 'claude' && ai.mode) ? 'claude' : 'local';
-let readerP = null;
+const PHOTO_CLAUDE = false;   // Claude for photos is switched off for now; the code path stays for later
+const photoEngine = () => (PHOTO_CLAUDE && prefs.photo === 'claude' && ai.mode) ? 'claude' : 'local';
+let readerP = null, warnedTexo = false;
 function loadReader(){
   if (readerP) return readerP;
   readerP = (async () => {
-    const ink = await loadInk(), ort = await import('onnxruntime-web'), { createPageReader } = await import('./vendor/ocr/pagereader.js');
+    const ink = await loadInk(), ort = await import('onnxruntime-web'), { createPageReader } = await import('./vendor/ocr/pagereader.4.js');
     const base = new URL('vendor/models/', location.href).href;
     const fetchModel = async (name, as) => {
       for (const u of [base + name, base + name + '.wasm']) { try { const r = await fetch(u); if (r.ok) return as === 'text' ? r.text() : r.arrayBuffer(); } catch {} }
@@ -1321,8 +1342,7 @@ function setMenu(){
     <div style="padding:2px 10px 6px"><div class="seg wide"><button data-hw="local" aria-pressed="${padEngine() === 'local'}">${icon('chip')}On device</button><button data-hw="claude" aria-pressed="${padEngine() === 'claude'}" ${can ? '' : 'disabled'}>Claude</button></div></div>
     <div class="hint" style="padding:0 10px 8px">On device is private and works offline, but makes more mistakes and knows about 110 symbols. Claude is more accurate and sends the drawing to Claude.</div>
     <hr><div class="lbl">Photos of notes and boards</div>
-    <div style="padding:2px 10px 6px"><div class="seg wide"><button data-ph="local" aria-pressed="${photoEngine() === 'local'}">${icon('chip')}On device</button><button data-ph="claude" aria-pressed="${photoEngine() === 'claude'}" ${can ? '' : 'disabled'}>Claude</button></div></div>
-    <div class="hint" style="padding:0 10px 8px">On device reads text and formulas offline (PaddleOCR + Texo): good on neat writing, rougher on messy boards. Claude reads messy boards much better and sends the photo to Claude.</div>`);
+    <div class="hint" style="padding:0 10px 8px">Read on this device (PaddleOCR for text, Texo for formulas): nothing is uploaded. Good on neat writing, rougher on messy boards. Each block keeps a crop of the photo to compare against.</div>`);
 }
 /* ---------- handwriting pad ---------- */
 let pad = null;
