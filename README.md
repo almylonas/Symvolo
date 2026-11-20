@@ -1,14 +1,12 @@
 # Symvolo
 
-*σύμβολο — symbol.* A full-screen workspace for math notes. Bring in a photo of a notebook page or a school board, or draw a formula by hand, and Symvolo turns it into editable text and LaTeX blocks you can arrange freely on a cross-grid canvas. Save your layouts and export them as Markdown, as a PDF or as a LaTeX document.
+*σύμβολο — symbol.* **A versatile editor for mathematical notes, with LaTeX as its engine.** Write prose and formulas, place every block freely on a cross-grid workspace, edit formulas visually or as LaTeX source, and export to Markdown, PDF or a compilable `.tex` document. Notes can also be brought in from photos of boards and pages, or drawn by hand. That recognition is in **beta**.
 
 ## Features
 
-- **Welcome screen.** On opening, a translucent overlay over the live workspace shows the name, what Symvolo does and a **Start writing** button. Pressing it (or Enter) fades the overlay and the workspace is ready immediately. It can be shown again from the `?` menu.
-- **Cross-grid workspace.** Full-screen canvas of small crosses. Pan, zoom to the cursor, fit to screen, and snap blocks to the crosses (toggle with `G`).
-- **Photos → LaTeX, on your device or with Claude.** Drop, choose or paste photos of handwritten or printed notes, handouts, whiteboards or chalkboards (up to 5 at once). They become text and formula blocks laid out like the original. An **offline pipeline** reads them in the browser: it finds the lines, reads the text, tells formulas from prose and turns the formulas into LaTeX. Anything doubtful is outlined in orange. Select a block to see the part of the photo it came from, right above its editor, and switch a block between text and formula with one click if it was classified wrongly. You can keep the photo next to the notes.
-- **Handwriting → LaTeX, on your device.** Draw a symbol or an equation with a mouse, pen or finger (`P`). A small neural network (CoMER, 7 MB) reads it **in the browser, offline**, while you draw. No image leaves your machine. You get a live preview and editable LaTeX, then add it to the workspace. From the inspector you can also draw a replacement for a formula, or draw a formula into the middle of a sentence. Claude can be switched on as a more accurate engine (with up to three alternative readings).
+- **Welcome screen.** On opening, a translucent overlay over the live workspace, typeset in LaTeX style, shows the name, what Symvolo does and a **Start writing** button. Pressing it (or Enter) fades the overlay and the workspace is ready immediately. It can be shown again from the `?` menu.
 - **Two ways to edit.** Formulas: edit them directly, like an equation editor (MathLive, with an on-screen math keyboard), or as LaTeX code. Text: type directly, with formulas inside it that you click to edit, or edit the Markdown + `$LaTeX$` source.
+- **Cross-grid workspace.** Full-screen canvas of small crosses. Pan, zoom to the cursor, fit to screen, and snap blocks to the crosses (toggle with `G`).
 - **Free layout.** Drag, resize, multi-select (marquee or `Shift`+click), line up left or top edges, space blocks evenly, layer order, lock, duplicate, nudge with the arrow keys. Each block has its own size, ink colour and background (none, card or highlight).
 - **Workspaces.** Create, rename, duplicate, delete and switch between them. Choose a workspace colour from 7 presets or any custom colour; the interface turns dark on dark colours. Note lettering can be the LaTeX serif or a sans.
 - **Save and export**
@@ -17,11 +15,13 @@
   - **PDF, as on screen**: the workspace with its colours, cut into A4 pages.
   - **PDF, LaTeX document**: typeset as an article in Computer Modern, with a title, author, date, numbered sections and equations and a live page preview.
   - **LaTeX source** (`.tex`): the same document as compilable LaTeX (`article`, `amsmath`). It compiles with `pdflatex` or in Overleaf.
+- **Photos → LaTeX (beta).** Drop, choose or paste photos of handwritten or printed notes, handouts, whiteboards or chalkboards (up to 5 at once). They become text and formula blocks laid out like the original. An **offline pipeline** reads them in the browser: it finds the lines, reads the text, tells formulas from prose and turns the formulas into LaTeX. Anything doubtful is outlined in orange. Select a block to see the part of the photo it came from, right above its editor, and switch a block between text and formula with one click if it was classified wrongly. You can keep the photo next to the notes.
+- **Handwriting → LaTeX (beta), on your device.** Draw a symbol or an equation with a mouse, pen or finger (`P`). A small neural network (CoMER, 7 MB) reads it **in the browser, offline**, while you draw. No image leaves your machine. You get a live preview and editable LaTeX, then add it to the workspace. From the inspector you can also draw a replacement for a formula, or draw a formula into the middle of a sentence. Claude can be switched on as a more accurate engine (with up to three alternative readings).
 - Undo/redo, autosave in the browser, paste an image anywhere to convert it, and a keyboard shortcut for nearly everything (`?` button in the app).
 
 > **About the LaTeX PDF.** It is typeset in the browser with KaTeX and the Computer Modern fonts, so it looks like LaTeX output but is not produced by a TeX engine, and its text is an image. For a true pdflatex document, export the `.tex` file and compile it.
 
-## How recognition works
+## How recognition works (beta)
 
 ### Drawn formulas: on-device by default
 
