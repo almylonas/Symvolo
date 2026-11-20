@@ -30,11 +30,43 @@ function cleanPage(src){
   const W = src.width, H = src.height, d = ctx2d(src).getImageData(0, 0, W, H).data, n = W * H;
   const g = new Float32Array(n);
   for (let i = 0; i < n; i++) g[i] = (d[i * 4] * .299 + d[i * 4 + 1] * .587 + d[i * 4 + 2] * .114) / 255;
-  // polarity: a dark board with light chalk → invert
-  const sorted = Float32Array.from(g.filter((_, i) => i % 7 === 0)).sort();
-  const median = sorted[sorted.length >> 1];
-  const dark = median < .45;
-  if (dark) for (let i = 0; i < n; i++) g[i] = 1 - g[i];
+  // Polarity is decided per region: a chalkboard photographed in a bright room is light-on-dark only
+  // where the board is. Tiles whose median is dark get inverted, with a soft edge between tiles.
+  const tw = Math.max(8, Math.round(W / 40)), th = Math.max(8, Math.round(H / 40)), dk = new Float32Array(tw * th);
+  for (let ty = 0; ty < th; ty++) for (let tx = 0; tx < tw; tx++) {
+    const x0 = Math.floor(tx * W / tw), x1 = Math.floor((tx + 1) * W / tw), y0 = Math.floor(ty * H / th), y1 = Math.floor((ty + 1) * H / th), v = [];
+    for (let y = y0; y < y1; y += 2) for (let x = x0; x < x1; x += 2) v.push(g[y * W + x]);
+    v.sort((a, b) => a - b); dk[ty * tw + tx] = clamp((.42 - (v[v.length >> 1] ?? 1)) / .1, 0, 1);
+  }
+  // the board = the largest connected group of dark tiles; everything outside it is blanked out
+  const comp = new Int32Array(tw * th); let bestC = 0, bestN = 0, nc = 0;
+  for (let i = 0; i < tw * th; i++) {
+    if (dk[i] < .5 || comp[i]) continue; nc++; let cnt = 0; const st = [i]; comp[i] = nc;
+    while (st.length) { const p = st.pop(), px = p % tw, py = (p - px) / tw; cnt++;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const qx = px + dx, qy = py + dy, q = qy * tw + qx;
+        if (qx >= 0 && qx < tw && qy >= 0 && qy < th && !comp[q] && dk[q] >= .5) { comp[q] = nc; st.push(q); } } }
+    if (cnt > bestN) { bestN = cnt; bestC = nc; }
+  }
+  const boardFrac = bestN / (tw * th), dark = boardFrac > .12;
+  let region = null;
+  if (dark) {
+    let rx0 = tw, ry0 = th, rx1 = 0, ry1 = 0;
+    for (let i = 0; i < tw * th; i++) if (comp[i] === bestC) { const x = i % tw, y = (i - x) / tw; rx0 = Math.min(rx0, x); rx1 = Math.max(rx1, x); ry0 = Math.min(ry0, y); ry1 = Math.max(ry1, y); }
+    region = { x0: Math.max(0, (rx0 - .5) * W / tw), y0: Math.max(0, (ry0 - .5) * H / th), x1: Math.min(W, (rx1 + 1.5) * W / tw), y1: Math.min(H, (ry1 + 1.5) * H / th) };
+    if ((region.x1 - region.x0) * (region.y1 - region.y0) > .9 * W * H) region = null;   // the whole photo is board
+  }
+  const sm = dk.slice();
+  for (let ty = 0; ty < th; ty++) for (let tx = 0; tx < tw; tx++) { let s = 0, c = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const yy = ty + dy, xx = tx + dx; if (yy >= 0 && yy < th && xx >= 0 && xx < tw) { s += Math.max(dk[yy * tw + xx], dk[ty * tw + tx]); c++; } }
+    sm[ty * tw + tx] = s / c; }
+  for (let y = 0; y < H; y++) {
+    const fy = clamp((y + .5) * th / H - .5, 0, th - 1), y0 = Math.floor(fy), y1 = Math.min(th - 1, y0 + 1), ty = fy - y0;
+    for (let x = 0; x < W; x++) {
+      const fx = clamp((x + .5) * tw / W - .5, 0, tw - 1), x0 = Math.floor(fx), x1 = Math.min(tw - 1, x0 + 1), tx = fx - x0;
+      const a = clamp((sm[y0 * tw + x0] * (1 - tx) + sm[y0 * tw + x1] * tx) * (1 - ty) + (sm[y1 * tw + x0] * (1 - tx) + sm[y1 * tw + x1] * tx) * ty, 0, 1);
+      const i = y * W + x; g[i] = g[i] * (1 - a) + (1 - g[i]) * a;
+    }
+  }
   // background estimate: heavy blur of a "max-ish" image (paper is the bright majority)
   const bw = Math.max(8, Math.round(W / 24)), bh = Math.max(8, Math.round(H / 24));
   const small = new Float32Array(bw * bh);
@@ -63,12 +95,23 @@ function cleanPage(src){
     }
   }
   // stretch contrast: darkest 1.5 % → 0
-  const s2 = Float32Array.from(out.filter((_, i) => i % 5 === 0)).sort(), lo = s2[Math.floor(s2.length * .015)];
+  const s2 = Float32Array.from(out.filter((_, i) => i % 5 === 0)).sort(), lo = s2[Math.floor(s2.length * .01)];
   for (let i = 0; i < n; i++) out[i] = clamp((out[i] - lo) / Math.max(.05, .97 - lo), 0, 1);
+  // local contrast: in each tile, map its darkest ink to black (faint or half-erased chalk stays readable)
+  { const cw = Math.max(6, Math.round(W / 16)), chh = Math.max(6, Math.round(H / 16)), lo2 = new Float32Array(cw * chh);
+    for (let ty = 0; ty < chh; ty++) for (let tx = 0; tx < cw; tx++) {
+      const x0 = Math.floor(tx * W / cw), x1 = Math.floor((tx + 1) * W / cw), y0 = Math.floor(ty * H / chh), y1 = Math.floor((ty + 1) * H / chh), v = [];
+      for (let y = y0; y < y1; y += 2) for (let x = x0; x < x1; x += 2) v.push(out[y * W + x]);
+      v.sort((a, b) => a - b); const l = v[Math.floor(v.length * .02)] ?? 0; lo2[ty * cw + tx] = l < .82 ? l : 1;   // tiles without ink keep their level
+    }
+    for (let y = 0; y < H; y++) { const ty = Math.min(chh - 1, Math.floor(y * chh / H));
+      for (let x = 0; x < W; x++) { const l = lo2[ty * cw + Math.min(cw - 1, Math.floor(x * cw / W))]; if (l >= 1) continue;
+        const i = y * W + x; out[i] = clamp((out[i] - l * .8) / Math.max(.15, .93 - l * .8), 0, 1); } } }
+  if (region) for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (x < region.x0 || x > region.x1 || y < region.y0 || y > region.y1) out[y * W + x] = 1;
   const c = canvas(W, H), cx = ctx2d(c), im = cx.createImageData(W, H);
   for (let i = 0; i < n; i++) { const v = Math.round(out[i] * 255); im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = v; im.data[i * 4 + 3] = 255; }
   cx.putImageData(im, 0, 0);
-  return { gray: out, canvas: c, W, H, dark };
+  return { gray: out, canvas: c, W, H, dark, region };
 }
 
 /* ---------- 2. line detection (DBNet) ---------- */
@@ -82,7 +125,7 @@ async function detectLines(ort, det, page){
   const res = await det.run({ [det.inputNames[0]]: new ort.Tensor('float32', x, [1, 3, h, w]) });
   const prob = res[det.outputNames[0]].data;
   // connected components on prob > .3
-  const lab = new Int32Array(n), boxes = [], stack = new Int32Array(n);
+  const lab = new Int32Array(n), boxes = [], comps = [], stack = new Int32Array(n);
   let cur = 0;
   for (let i = 0; i < n; i++) {
     if (prob[i] <= .3 || lab[i]) continue;
@@ -96,14 +139,43 @@ async function detectLines(ort, det, page){
       if (py > 0 && !lab[p - w] && prob[p - w] > .3) { lab[p - w] = cur; stack[sp++] = p - w; }
       if (py < h - 1 && !lab[p + w] && prob[p + w] > .3) { lab[p + w] = cur; stack[sp++] = p + w; }
     }
-    const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
-    if (cnt < 12 || sum / cnt < .5 || Math.max(bw, bh) < 4) continue;
-    // DB "unclip": grow the shrunk text kernel back out
-    const grow = (bw * bh * 1.6) / (2 * (bw + bh));
-    boxes.push({ x0: (x0 - grow) / k, y0: (y0 - grow) / k, x1: (x1 + 1 + grow) / k, y1: (y1 + 1 + grow) / k, score: sum / cnt });
+    if (cnt < 12 || sum / cnt < .5 || Math.max(x1 - x0, y1 - y0) < 3) continue;
+    comps.push({ id: cur, x0, y0, x1, y1, score: sum / cnt });
   }
-  for (const b of boxes) { b.x0 = clamp(b.x0, 0, page.W); b.x1 = clamp(b.x1, 0, page.W); b.y0 = clamp(b.y0, 0, page.H); b.y1 = clamp(b.y1, 0, page.H); }
-  return mergeIntoLines(boxes);
+  // typical text height = median kernel height of the wide-ish components
+  const hs = comps.filter(c => c.x1 - c.x0 > 1.5 * (c.y1 - c.y0)).map(c => c.y1 - c.y0 + 1).sort((a, b) => a - b);
+  const typH = hs[hs.length >> 1] || 12;
+  const pieces = [];
+  for (const c of comps) {
+    const cw = c.x1 - c.x0 + 1, chh = c.y1 - c.y0 + 1;
+    if (chh > 2.5 * typH && cw < .8 * typH) continue;                    // a divider line drawn on the board
+    if (chh <= 1.9 * typH) { pieces.push(c); continue; }
+    // several lines glued together (tall brackets, smudge): split at the quietest rows
+    const prof = new Float32Array(chh);
+    for (let y = c.y0; y <= c.y1; y++) { let s = 0; for (let x = c.x0; x <= c.x1; x++) if (lab[y * w + x] === c.id) s++; prof[y - c.y0] = s; }
+    const mx = Math.max(...prof); let start = 0;
+    for (let y = 1; y < chh; y++) {
+      const quiet = prof[y] < .12 * mx && y - start > .6 * typH;
+      if (quiet || y === chh - 1) {
+        let end = y; while (quiet && end + 1 < chh && prof[end + 1] < .12 * mx) end++;
+        const yy0 = c.y0 + start, yy1 = c.y0 + (quiet ? y : end);
+        let px0 = c.x1, px1 = c.x0;
+        for (let yy = yy0; yy <= yy1; yy++) for (let x = c.x0; x <= c.x1; x++) if (lab[yy * w + x] === c.id) { if (x < px0) px0 = x; if (x > px1) px1 = x; }
+        if (px1 >= px0 && yy1 - yy0 >= 2) pieces.push({ x0: px0, y0: yy0, x1: px1, y1: yy1, score: c.score });
+        start = end + 1; y = end;
+      }
+    }
+  }
+  for (const c of pieces) {
+    const bw = c.x1 - c.x0 + 1, bh = c.y1 - c.y0 + 1;
+    // DB "unclip": grow the shrunk text kernel back out
+    const grow = Math.min((bw * bh * 1.5) / (2 * (bw + bh)), .9 * typH);
+    boxes.push({ x0: c.x0 / k, y0: c.y0 / k, x1: (c.x1 + 1) / k, y1: (c.y1 + 1) / k, grow: grow / k, score: c.score });
+  }
+  // merge on the detector's line cores (before growing them back), so neighbouring columns stay apart
+  const lines = mergeIntoLines(boxes);
+  for (const b of lines) { const g = b.grow; b.x0 = clamp(b.x0 - g, 0, page.W); b.x1 = clamp(b.x1 + g, 0, page.W); b.y0 = clamp(b.y0 - g, 0, page.H); b.y1 = clamp(b.y1 + g, 0, page.H); }
+  return lines;
 }
 const bh_ = b => b.y1 - b.y0, bw_ = b => b.x1 - b.x0;
 function mergeIntoLines(boxes){
@@ -115,8 +187,8 @@ function mergeIntoLines(boxes){
       const a = boxes[i], b = boxes[j];
       const vov = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0), minH = Math.min(bh_(a), bh_(b)), maxH = Math.max(bh_(a), bh_(b));
       const hgap = Math.max(a.x0, b.x0) - Math.min(a.x1, b.x1);
-      if (vov > .5 * minH && hgap < 1.1 * maxH && maxH / minH < 2.6) {
-        boxes[i] = { x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1), score: Math.min(a.score, b.score) };
+      if (vov > .5 * minH && hgap < 1.5 * maxH && maxH / minH < 2.6) {
+        boxes[i] = { x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1), grow: Math.max(a.grow, b.grow), score: Math.min(a.score, b.score) };
         boxes.splice(j, 1); changed = true; break outer;
       }
     }
@@ -125,7 +197,9 @@ function mergeIntoLines(boxes){
 }
 
 /* ---------- 3. line recognition (CTC) ---------- */
-async function recognizeLine(ort, rec, dict, page, b){
+// Only Latin, Greek, digits, punctuation and maths: the multilingual model otherwise "finds" CJK characters in unclear strokes.
+const ALLOWED = /^[\u0020-\u007E\u00A0-\u024F\u0370-\u03FF\u2010-\u2027\u2032-\u2034\u2190-\u21FF\u2200-\u22FF\u2102\u210F\u2115\u211A\u211D\u2124\u00B2\u00B3\u00B9\u2070-\u209F]$/u;
+async function recognizeLine(ort, rec, dict, page, b, allow){
   const pad = Math.round(bh_(b) * .08), x0 = Math.max(0, b.x0 - pad), y0 = Math.max(0, b.y0 - pad), x1 = Math.min(page.W, b.x1 + pad), y1 = Math.min(page.H, b.y1 + pad);
   const cw = x1 - x0, ch = y1 - y0;
   const W = clamp(Math.round(REC_H * cw / ch), 16, 3200), c = canvas(W, REC_H);
@@ -137,7 +211,7 @@ async function recognizeLine(ort, rec, dict, page, b){
   const chars = []; let prev = 0;
   for (let s = 0; s < T; s++) {
     let best = 0, bv = -1; const o = s * C;
-    for (let k = 0; k < C; k++) if (p[o + k] > bv) { bv = p[o + k]; best = k; }
+    for (let k = 0; k < C; k++) if (allow[k] && p[o + k] > bv) { bv = p[o + k]; best = k; }
     if (best !== 0 && best !== prev) { const chr = best - 1 < dict.length ? dict[best - 1] : ' '; chars.push({ c: chr === '　' ? ' ' : chr, p: bv, x: x0 + (s + .5) / T * cw }); }
     prev = best;
   }
@@ -290,6 +364,8 @@ export async function createPageReader({ ort, ink, fetchModel }){
   // ppocrv5_dict.txt as shipped starts with an ideographic space that the model's output layer doesn't have:
   // classes are [blank, dict lines 2…N, ' '].
   const dict = dictTxt.split(/\r?\n/); if (dict.at(-1) === '') dict.pop(); if (dict[0] === '\u3000') dict.shift();
+  const allow = new Uint8Array(dict.length + 2); allow[0] = 1; allow[dict.length + 1] = 1;
+  dict.forEach((ch, i) => { if (ALLOWED.test(ch)) allow[i + 1] = 1; });
 
   async function read(blob, { onProgress = () => {}, signal } = {}){
     const stop = () => { if (signal?.aborted) throw { code: 'cancelled' }; };
@@ -300,8 +376,8 @@ export async function createPageReader({ ort, ink, fetchModel }){
     const lines = [];
     for (let i = 0; i < boxes.length; i++) {
       onProgress(`Reading line ${i + 1} of ${boxes.length}…`);
-      const b = boxes[i], r = await recognizeLine(ort, rec, dict, page, b); await yieldUI(); stop();
-      if (!r.text) continue;
+      const b = boxes[i], r = await recognizeLine(ort, rec, dict, page, b, allow); await yieldUI(); stop();
+      if (!r.text || (r.conf < .35 && r.text.replace(/\s/g, '').length < 4)) continue;
       const toks = splitTokens(r);
       const nWord = toks.filter(t => t.kind === 'word').length, nMath = toks.filter(t => t.kind === 'math').length;
       const rel = toks.some(t => /[=<>≤≥≈≠]/.test(t.s)), longWords = toks.filter(t => t.kind === 'word' && t.s.length >= 4).length;
@@ -326,7 +402,10 @@ export async function createPageReader({ ort, ink, fetchModel }){
         }
       }
     }
-    lines.sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0);
+    // columns: split where no line crosses a vertical gap (boards are often written in two or three columns)
+    { const byX = [...lines].sort((a, b) => a.x0 - b.x0); let col = 0, reach = -Infinity;
+      for (const l of byX) { if (l.x0 > reach + .015 * page.W && reach > -Infinity) col++; l.col = col; reach = Math.max(reach, l.x1); } }
+    lines.sort((a, b) => a.col - b.col || a.y0 - b.y0 || a.x0 - b.x0);
     // read the maths
     const nF = lines.filter(l => l.kind !== 'text').length; let done = 0;
     for (const l of lines) {
@@ -362,10 +441,10 @@ export async function createPageReader({ ort, ink, fetchModel }){
       const oP = others.length ? med(others.map(pitch)) : textPitch, oH = others.length ? med(others.map(bh_)) : textH, words = l.text.split(' ').length;
       const heading = l.kind === 'text' && l.text.length >= 3 && words <= 6 && !/[.:,;]$/.test(l.text)
         && (pitch(l) > 1.2 * oP || h > 1.25 * oH || (l === lines[0] && words <= 4 && pitch(l) > oP));
-      const near = last && l.y0 - last.y1 < .9 * Math.max(h, last.lh) && Math.abs(l.x0 - last.x0) < 2.2 * Math.max(h, last.lh);
+      const near = last && last.col === l.col && l.y0 - last.y1 < .9 * Math.max(h, last.lh) && Math.abs(l.x0 - last.x0) < 2.2 * Math.max(h, last.lh);
       if (near && !heading && !last.heading && last.kind === 'math' && l.kind === 'math') { last.rows.push(l.out); Object.assign(last, ext(last, l)); last.weak ||= l.weak; last.conf = Math.min(last.conf, l.conf); continue; }
       if (near && !heading && !last.heading && last.kind !== 'math' && l.kind !== 'math') { last.rows.push(l.out); Object.assign(last, ext(last, l)); last.weak ||= l.weak; last.conf = Math.min(last.conf, l.conf); continue; }
-      blocks.push({ kind: l.kind === 'math' ? 'math' : 'text', heading, rows: [l.out], x0: l.x0, y0: l.y0, x1: l.x1, y1: l.y1, lh: h, conf: l.conf, weak: l.weak });
+      blocks.push({ kind: l.kind === 'math' ? 'math' : 'text', heading, rows: [l.out], x0: l.x0, y0: l.y0, x1: l.x1, y1: l.y1, lh: h, conf: l.conf, weak: l.weak, col: l.col });
     }
     function ext(a, b){ return { x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) }; }
     return blocks.map(b => {
