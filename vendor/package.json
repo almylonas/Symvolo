@@ -1,0 +1,15 @@
+{
+  "name": "symvolo",
+  "version": "1.0.0",
+  "description": "A versatile math notes editor with LaTeX as its engine: free-form workspace, visual and source editing, Markdown / PDF / LaTeX export, plus beta photo and handwriting recognition.",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "npx --yes serve ."
+  }
+}
