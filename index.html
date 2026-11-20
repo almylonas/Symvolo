@@ -388,6 +388,8 @@ input[type=range]{accent-color:var(--accent);flex:1}
 <script>
 {
 const G = 24;
+// AGPL-3.0 §13: anyone using a deployed Symvolo must be offered its source. Set this to your repository.
+const SOURCE_URL = 'https://github.com/YOUR-NAME/symvolo';
 const $ = s => document.querySelector(s);
 const uid = () => Math.random().toString(36).slice(2, 10);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -928,7 +930,8 @@ function helpMenu(){
     <span><kbd>Ctrl S</kbd></span><span>save workspace file</span>
     <span><kbd>G</kbd></span><span>snap to crosses on/off</span>
     <span><kbd>1</kbd> / <kbd>0</kbd></span><span>fit / 100%</span></div>
-    <div class="hint" style="padding:4px 10px 8px">Paste an image anywhere to convert it.</div>`);
+    <div class="hint" style="padding:4px 10px 8px">Paste an image anywhere to convert it.</div>
+    <hr><div class="hint" style="padding:4px 10px 8px">Symvolo is free software under the AGPL-3.0. <a href="${SOURCE_URL}" target="_blank" rel="noopener" style="color:var(--accent)">Source code</a> · reading models: PaddleOCR, Texo, CoMER.</div>`);
 }
 $('#pop').addEventListener('click', e => {
   const t = e.target.closest('button'); if (!t) return;
@@ -1070,7 +1073,7 @@ function drawImport(){
         ${local ? '' : `<div class="seg"><button data-tier="default" aria-pressed="${imp.tier === 'default'}">Standard</button><button data-tier="complex" aria-pressed="${imp.tier === 'complex'}">Careful</button></div>`}</div>
       ${local ? '' : `<input class="field" id="impHint" placeholder="What's on it? Optional — e.g. “Analysis II lecture, German”" value="${esc(imp.hint)}">`}
     </div>
-    ${local ? `<div class="note">${icon('chip', 'style="width:15px;height:15px;vertical-align:-3px"')} Read on this device — nothing is uploaded. Works best on neat, printed handwriting; cursive and crowded boards come out rougher, so check the blocks outlined in orange.${readerP ? '' : ' First use downloads the reading models (about 40 MB) once.'}</div>` : aiNoteHtml(true)}
+    ${local ? `<div class="note">${icon('chip', 'style="width:15px;height:15px;vertical-align:-3px"')} Read on this device — nothing is uploaded. Works best on neat, printed handwriting; cursive and crowded boards come out rougher, so check the blocks outlined in orange.${readerP ? '' : ' First use downloads the reading models (about 100 MB) once; after that it works offline.'}</div>` : aiNoteHtml(true)}
     <div class="mf"><button class="btn outline" data-c="x">Cancel</button>
       ${can ? '' : `<button class="btn outline" data-c="place" ${imp.files.length ? '' : 'disabled'}>Place photos only</button>`}
       <button class="btn primary" data-c="go" ${imp.files.length && can ? '' : 'disabled'}>${icon('scan')}Convert to LaTeX</button></div>`, 'import');
@@ -1245,7 +1248,7 @@ function loadReader(){
   if (readerP) return readerP;
   readerP = (async () => {
     const ink = await loadInk(), ort = await import('onnxruntime-web'), { createPageReader } = await import('./vendor/ocr/pagereader.js');
-    const base = new URL('vendor/models/ppocr/', location.href).href;
+    const base = new URL('vendor/models/', location.href).href;
     const fetchModel = async (name, as) => {
       for (const u of [base + name, base + name + '.wasm']) { try { const r = await fetch(u); if (r.ok) return as === 'text' ? r.text() : r.arrayBuffer(); } catch {} }
       throw new Error('Missing model file ' + name);
@@ -1319,7 +1322,7 @@ function setMenu(){
     <div class="hint" style="padding:0 10px 8px">On device is private and works offline, but makes more mistakes and knows about 110 symbols. Claude is more accurate and sends the drawing to Claude.</div>
     <hr><div class="lbl">Photos of notes and boards</div>
     <div style="padding:2px 10px 6px"><div class="seg wide"><button data-ph="local" aria-pressed="${photoEngine() === 'local'}">${icon('chip')}On device</button><button data-ph="claude" aria-pressed="${photoEngine() === 'claude'}" ${can ? '' : 'disabled'}>Claude</button></div></div>
-    <div class="hint" style="padding:0 10px 8px">On device reads text and formulas offline: good for neat, printed handwriting, weaker on cursive and complex layouts. Claude reads messy boards much better and sends the photo to Claude.</div>`);
+    <div class="hint" style="padding:0 10px 8px">On device reads text and formulas offline (PaddleOCR + Texo): good on neat writing, rougher on messy boards. Claude reads messy boards much better and sends the photo to Claude.</div>`);
 }
 /* ---------- handwriting pad ---------- */
 let pad = null;
