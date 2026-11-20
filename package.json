@@ -1,11 +1,13 @@
 {
   "name": "symvolo",
   "version": "1.0.0",
-  "description": "Math notes on a cross-grid workspace: photos and handwriting to editable LaTeX, free layout, Markdown / PDF / LaTeX export.",
+  "description": "Math notes on a cross-grid workspace: photos and handwriting to editable LaTeX (offline or with Claude), free layout, Markdown / PDF / LaTeX export.",
   "private": true,
   "type": "module",
-  "license": "MIT",
-  "engines": { "node": ">=20" },
+  "license": "AGPL-3.0-only",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vercel dev",
     "start": "npx --yes serve ."
