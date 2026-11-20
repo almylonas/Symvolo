@@ -251,6 +251,32 @@ input[type=range]{accent-color:var(--accent);flex:1}
 .lfig img{display:block;max-width:72%;max-height:440px;margin:4px auto 6px;border:1px solid #ddd}
 .lpage code{font-family:"Courier New",monospace;font-size:.92em}
 .lpage mark{background:none;font-style:italic}
+
+/* landing: a mask over the live workspace */
+#landing{position:fixed;inset:0;z-index:95;display:grid;place-items:center;padding:clamp(20px,4vw,48px);overflow:auto;
+  background:radial-gradient(110% 85% at 28% 38%,color-mix(in srgb,var(--surface) 90%,transparent),color-mix(in srgb,var(--surface) 72%,transparent));
+  backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);transition:opacity .35s ease,visibility .35s}
+#landing.out{opacity:0;visibility:hidden}
+body.landing .ui,body.landing #empty,body.landing #insp,body.landing #toast{opacity:0;pointer-events:none}
+.ui,#empty{transition:opacity .3s ease}
+.land{width:min(1040px,100%);display:grid;gap:clamp(22px,3.4vw,36px)}
+.land-brand{display:flex;align-items:center;gap:12px;font-weight:650;font-size:20px;letter-spacing:-.02em}
+.land-brand .logo-mark{width:40px;height:40px;border-radius:11px}.land-brand .logo-mark svg{width:20px;height:20px}
+.land h1{margin:0;font-size:clamp(36px,5.4vw,60px);line-height:1.04;font-weight:650;letter-spacing:-.03em;max-width:15ch;text-wrap:balance}
+.land h1 em{font-style:normal;font-family:KaTeX_Main,serif;font-weight:400;letter-spacing:0}
+.land-lede{margin:0;font-size:clamp(16px,1.6vw,18px);line-height:1.55;color:var(--muted);max-width:60ch}
+.land-cta{display:flex;gap:10px;flex-wrap:wrap}
+.btn.big{height:50px;padding:0 22px;font-size:15.5px;border-radius:11px}
+.land-feats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.feat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:8px;align-content:start;box-shadow:var(--shadow)}
+.feat .fi{width:36px;height:36px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center}
+.feat b{font-size:15px;font-weight:600}
+.feat p{margin:0;color:var(--muted);font-size:14px;line-height:1.5}
+.feat .eq{font-size:17px;color:var(--fg);overflow:hidden;white-space:nowrap}
+.land-foot{margin:0;font-size:13px;color:var(--subtle)}
+.land-foot a{color:var(--accent)}
+@media(max-width:760px){.land-feats{grid-template-columns:minmax(0,1fr)}.land h1{max-width:none}}
+@media(prefers-reduced-motion:reduce){#landing{transition:none}}
 /* export sheet (offscreen) */
 .sheet{position:absolute;left:0;top:0;z-index:-5;overflow:hidden}
 .sheet .blk{outline:none!important}.sheet .rz,.sheet .lockdot{display:none!important}
@@ -271,7 +297,7 @@ input[type=range]{accent-color:var(--accent);flex:1}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation-duration:2s!important}}
 </style>
 </head>
-<body>
+<body class="landing">
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-cross" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-cursor" viewBox="0 0 24 24"><path d="M5 3l14 8-6.2 1.6L10 19z"/></symbol>
@@ -309,6 +335,7 @@ input[type=range]{accent-color:var(--accent);flex:1}
   <symbol id="i-screen" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M7.5 8.5v3M6 10h3M14 9h4M14 12h3"/></symbol>
   <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></symbol>
   <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></symbol>
+  <symbol id="i-arrowr" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
   <symbol id="i-alignl" viewBox="0 0 24 24"><path d="M4 4v16M8 8h10M8 16h6"/></symbol>
   <symbol id="i-alignt" viewBox="0 0 24 24"><path d="M4 4h16M8 8v10M16 8v6"/></symbol>
   <symbol id="i-distv" viewBox="0 0 24 24"><path d="M4 4h16M4 20h16M8 10h8v4H8z"/></symbol>
@@ -379,6 +406,24 @@ input[type=range]{accent-color:var(--accent);flex:1}
   <div class="ib" id="inspBody"></div>
 </aside>
 
+
+<div id="landing" role="dialog" aria-modal="true" aria-labelledby="landTitle">
+  <div class="land">
+    <div class="land-brand"><div class="logo-mark"><svg class="i"><use href="#i-cross"/></svg></div>Symvolo</div>
+    <h1 id="landTitle">Math notes that read your <em>handwriting</em>.</h1>
+    <p class="land-lede">Photograph a board or a notebook page, or draw a formula by hand. Symvolo turns it into text and LaTeX blocks you can place anywhere on the workspace, edit visually or as code, and export as Markdown, PDF or a LaTeX document.</p>
+    <div class="land-cta">
+      <button class="btn primary big" id="startBtn">Start writing<svg class="i" style="width:17px"><use href="#i-arrowr"/></svg></button>
+      <button class="btn outline big" id="landOpen"><svg class="i"><use href="#i-open"/></svg>Open a saved workspace</button>
+    </div>
+    <div class="land-feats">
+      <div class="feat"><div class="fi"><svg class="i"><use href="#i-scan"/></svg></div><b>Boards and pages → LaTeX</b><p>Import a photo; text and formulas come out as separate blocks, laid out like the original, with the photo crop beside each one to check against.</p></div>
+      <div class="feat"><div class="fi"><svg class="i"><use href="#i-pen"/></svg></div><b>Draw a formula</b><p>Write a symbol or an equation with mouse, pen or finger and get its LaTeX as you draw.</p><div class="eq" id="landEq"></div></div>
+      <div class="feat"><div class="fi"><svg class="i"><use href="#i-grid"/></svg></div><b>Your layout, your format</b><p>Move and size every block on the cross grid, colour the workspace, and save it to reopen exactly as you left it.</p></div>
+    </div>
+    <p class="land-foot">Runs entirely in your browser — photos and drawings never leave your device. Free software under the AGPL-3.0 · <a id="landSrc" href="#" target="_blank" rel="noopener">Source code</a></p>
+  </div>
+</div>
 <div id="pop" class="pop" hidden></div>
 <div id="scrim" class="scrim" hidden><div class="modal" id="modal" role="dialog" aria-modal="true"></div></div>
 <div id="toast" role="status"></div>
@@ -646,6 +691,7 @@ stage.addEventListener('wheel', e => {
 /* ---------- keyboard ---------- */
 const editing = t => t && (t.closest?.('input,textarea,[contenteditable=true],math-field,.rich') || t.tagName === 'MATH-FIELD');
 addEventListener('keydown', e => {
+  if (!$('#landing').classList.contains('out')) { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); startApp(); } return; }
   if (e.key === 'Escape') { if (!$('#scrim').hidden && !importBusy) return closeModal(); if (!$('#pop').hidden) return closePop(); if (editing(document.activeElement)) { document.activeElement.blur?.(); return; } setSel([]); setTool('select'); return; }
   if (pad && !$('#scrim').hidden) {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !editing(e.target)) { e.preventDefault(); pad.strokes.pop(); pad.redraw(); strokesChanged(); return; }
@@ -939,6 +985,7 @@ function helpMenu(){
     <span><kbd>Ctrl S</kbd></span><span>save workspace file</span>
     <span><kbd>G</kbd></span><span>snap to crosses on/off</span>
     <span><kbd>1</kbd> / <kbd>0</kbd></span><span>fit / 100%</span></div>
+    <button class="mi" data-m="welcome">${icon('cross')}<span>Show the welcome screen</span></button>
     <div class="hint" style="padding:4px 10px 8px">Paste an image anywhere to convert it.</div>
     <hr><div class="hint" style="padding:4px 10px 8px">Symvolo is free software under the AGPL-3.0. <a href="${SOURCE_URL}" target="_blank" rel="noopener" style="color:var(--accent)">Source code</a> · reading models: PaddleOCR, Texo, CoMER.</div>`);
 }
@@ -954,7 +1001,7 @@ $('#pop').addEventListener('click', e => {
      dupws: () => { const w = JSON.parse(JSON.stringify(W())); w.id = uid(); w.name = W().name + ' (copy)'; w.updated = Date.now(); S.workspaces.push(w); switchWs(w.id); toast('Workspace duplicated'); },
      delws: () => confirmBox(`Delete “${esc(W().name)}”?`, 'Its blocks are removed from this browser. Save it as a file first if you may want it back.', 'Delete', () => {
        S.workspaces = S.workspaces.filter(w => w.id !== S.activeId); if (!S.workspaces.length) S.workspaces.push(newWorkspace()); switchWs(S.workspaces[0].id); }),
-     open: () => $('#fileWs').click(), savews: saveWorkspaceFile, md: exportMarkdown, pdf: openPdfDialog, tex: exportTex,
+     welcome: showLanding, open: () => $('#fileWs').click(), savews: saveWorkspaceFile, md: exportMarkdown, pdf: openPdfDialog, tex: exportTex,
      copymd: async () => { try { await navigator.clipboard.writeText(toMarkdown()); toast('Markdown copied'); } catch { showText('Markdown', toMarkdown()); } } })[m]?.();
 });
 $('#pop').addEventListener('input', e => { if (e.target.id === 'bgPick') { W().bg = e.target.value; applySurface(); persist(); } });
@@ -1268,7 +1315,7 @@ let readerP = null, warnedTexo = false;
 function loadReader(){
   if (readerP) return readerP;
   readerP = (async () => {
-    const ink = await loadInk(), ort = await import('onnxruntime-web'), { createPageReader } = await import('./vendor/ocr/pagereader.4.js');
+    const ink = await loadInk(), ort = await import('onnxruntime-web'), { createPageReader } = await import('./vendor/ocr/pagereader.5.js');
     const base = new URL('vendor/models/', location.href).href;
     const fetchModel = async (name, as) => {
       for (const u of [base + name, base + name + '.wasm']) { try { const r = await fetch(u); if (r.ok) return as === 'text' ? r.text() : r.arrayBuffer(); } catch {} }
@@ -1652,6 +1699,7 @@ async function exportLatexPDF(btn){
 
 /* paste & drop on the stage */
 addEventListener('paste', e => {
+  if (!$('#landing').classList.contains('out')) return;
   if (editing(e.target) || !$('#scrim').hidden) return;
   const files = [...(e.clipboardData?.files || [])].filter(f => f.type.startsWith('image/'));
   if (files.length) { e.preventDefault(); openImport(files); return; }
@@ -1682,6 +1730,19 @@ const wsName = $('#wsName');
 wsName.oninput = () => { W().name = wsName.value || 'Untitled workspace'; W().updated = Date.now(); persist(); document.title = W().name + ' — Symvolo'; };
 wsName.onkeydown = e => { if (e.key === 'Enter') wsName.blur(); };
 addEventListener('resize', () => { if (!$('#pop').hidden) closePop(); });
+
+/* ---------- landing ---------- */
+function startApp(){
+  const l = $('#landing'); if (l.classList.contains('out')) return;
+  l.classList.add('out'); document.body.classList.remove('landing');
+  setTimeout(() => { if (l.classList.contains('out')) l.hidden = true; }, 380);
+  stage.focus?.();
+}
+function showLanding(){ const l = $('#landing'); l.hidden = false; requestAnimationFrame(() => { l.classList.remove('out'); document.body.classList.add('landing'); $('#startBtn').focus(); }); closePop(); }
+$('#startBtn').onclick = startApp;
+$('#landOpen').onclick = () => { startApp(); $('#fileWs').click(); };
+$('#landSrc').href = SOURCE_URL;
+try { $('#landEq').innerHTML = tex('\\nabla\\cdot\\vec E=\\frac{\\rho}{\\varepsilon_0}', false); } catch {}
 
 /* ---------- start ---------- */
 $('#snapBtn').setAttribute('aria-pressed', !!S.snap);
