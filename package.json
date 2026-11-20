@@ -1,7 +1,7 @@
 {
   "name": "symvolo",
   "version": "1.0.0",
-  "description": "Math notes on a cross-grid workspace: photos and handwriting to editable LaTeX (offline or with Claude), free layout, Markdown / PDF / LaTeX export.",
+  "description": "A versatile math notes editor with LaTeX as its engine: free-form workspace, visual and source editing, Markdown / PDF / LaTeX export, plus beta photo and handwriting recognition.",
   "private": true,
   "type": "module",
   "license": "AGPL-3.0-only",
