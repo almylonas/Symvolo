@@ -5,7 +5,7 @@
 ## Features
 
 - **Cross-grid workspace.** Full-screen canvas of small crosses. Pan, zoom to the cursor, fit to screen, and snap blocks to the crosses (toggle with `G`).
-- **Photos → LaTeX, on your device or with Claude.** Drop, choose or paste photos of handwritten or printed notes, handouts, whiteboards or chalkboards (up to 5 at once). They become text and formula blocks laid out like the original. By default an **offline pipeline** reads them in the browser: it finds the lines, reads the text, tells formulas from prose and turns the formulas into LaTeX. Claude can be chosen instead for messy boards. Anything doubtful is outlined in orange with a note. You can keep the photo next to the notes.
+- **Photos → LaTeX, on your device or with Claude.** Drop, choose or paste photos of handwritten or printed notes, handouts, whiteboards or chalkboards (up to 5 at once). They become text and formula blocks laid out like the original. An **offline pipeline** reads them in the browser: it finds the lines, reads the text, tells formulas from prose and turns the formulas into LaTeX. Anything doubtful is outlined in orange. Select a block to see the part of the photo it came from, right above its editor, and switch a block between text and formula with one click if it was classified wrongly. You can keep the photo next to the notes.
 - **Handwriting → LaTeX, on your device.** Draw a symbol or an equation with a mouse, pen or finger (`P`). A small neural network (CoMER, 7 MB) reads it **in the browser, offline**, while you draw. No image leaves your machine. You get a live preview and editable LaTeX, then add it to the workspace. From the inspector you can also draw a replacement for a formula, or draw a formula into the middle of a sentence. Claude can be switched on as a more accurate engine (with up to three alternative readings).
 - **Two ways to edit.** Formulas: edit them directly, like an equation editor (MathLive, with an on-screen math keyboard), or as LaTeX code. Text: type directly, with formulas inside it that you click to edit, or edit the Markdown + `$LaTeX$` source.
 - **Free layout.** Drag, resize, multi-select (marquee or `Shift`+click), line up left or top edges, space blocks evenly, layer order, lock, duplicate, nudge with the arrow keys. Each block has its own size, ink colour and background (none, card or highlight).
@@ -40,15 +40,15 @@ The drawing pad uses [ink-on](https://github.com/kimseungdae/ink-on), an INT8 ON
 2. **Find lines.** PaddleOCR PP-OCRv5 text detection (DBNet). Lines glued together by tall brackets are split, divider strokes are dropped, word boxes on a line are joined, and columns stay apart. Columns are then read left to right.
 3. **Read lines.** PP-OCRv5 multilingual recognition (CTC), limited to Latin, Greek, digits and maths symbols, which gives characters with their positions and confidences. It handles umlauts and accents, so German or French notes work.
 4. **Text or maths?** Rules on each token: real words (≥3 letters, or common short words in English, German, French and Spanish) versus symbols, operators, digits and function names. A line becomes text, a formula, or text with inline `$…$` maths. Stacked pieces (numerator / bar / denominator) are merged.
-5. **Formulas → LaTeX.** Each formula region is read by **[Texo](https://github.com/alephpi/Texo)**, a 20M-parameter formula recogniser trained on printed and handwritten maths. It knows the full LaTeX vocabulary of lecture notes (`\vec`, `\hat`, `\hbar`, `\delta`, `\varepsilon`, `\equiv`, `\partial`, `\nabla`, `\dim`, `\ker`, arrays…). Font-style noise is removed and spelled-out function names become operators. The text reading acts as a check: if Texo's answer is much shorter than what was seen, the LaTeX is built from the text reading instead and the block is flagged. If Texo can't load, CoMER (the drawing-pad model) is used.
+5. **Formulas → LaTeX.** Each formula region is read twice, from the cleaned image and from a lightly corrected one, and the reading the model is more confident about wins. The reader is **[Texo](https://github.com/alephpi/Texo)**, a 20M-parameter formula recogniser trained on printed and handwritten maths. It knows the full LaTeX vocabulary of lecture notes (`\vec`, `\hat`, `\hbar`, `\delta`, `\varepsilon`, `\equiv`, `\partial`, `\nabla`, `\dim`, `\ker`, arrays…). Font-style noise is removed and spelled-out function names become operators. The text reading acts as a check: if Texo's answer is much shorter than what was seen, the LaTeX is built from the text reading instead and the block is flagged. If Texo can't load, CoMER (the drawing-pad model) is used.
 6. **Layout.** Headings (larger writing), paragraphs and multi-line derivations (aligned at `=`), with positions taken from the photo.
 
 **How good is it?**
 - **Neat, print-style writing:** most text and formulas come out right. Examples read exactly in our tests: $T(av+w)=aT(v)+T(w)$, $\dim V=\dim\ker T+\dim\operatorname{im}T$, $e^{x}=1+x+\frac{x^{2}}{2}$ and $xe^{x}=xe^{x}-e^{x}+C$, plus mixed lines like "Konvergenz für $|x|<R$".
-- **Real lecture-hall photos:** layout, columns and positions are right, but individual symbols often aren't (a P read as T or 7, arrows read as bars). Handwritten text lines are the weakest part. Everything uncertain is outlined in orange.
+- **Real lecture-hall photos:** layout, columns and positions are right, but individual symbols often aren't (a P read as T or 7). On one test photo of a physics board, the character error rate for formulas was about 45%. Handwritten text lines are the weakest part. Everything uncertain is outlined in orange, and the photo crop shown with each block makes fixing quick.
 - **Speed and download:** 3–7 s per photo. The first use downloads about 100 MB (OCR 22 MB, Texo 61 MB, runtime 12 MB, CoMER 7.5 MB), cached afterwards.
 
-For messy boards, Claude does far better. Choose it in the import dialog, or as the default under the gear button:
+**Claude for photos is switched off for now.** The code path is still there. Set `PHOTO_CLAUDE = true` in `index.html` to bring back the "Read with: On device | Claude" choice. Claude reads messy boards far better when enabled:
 
 | Where Symvolo runs | Who reads with "Claude" | Setup |
 |---|---|---|
@@ -56,7 +56,7 @@ For messy boards, Claude does far better. Choose it in the import dialog, or as 
 | Your own deployment (Vercel) | The `api/recognize` function, with your Anthropic API key | Set `ANTHROPIC_API_KEY` |
 | Anywhere else | Not available. On-device reading still works. | — |
 
-**Gear button (bottom left) → Recognition settings:** *Drawn formulas* and *Photos*, each **On device** (default) or **Claude**. With both on device, Symvolo never contacts any external service. For a deployment that can never call Claude, simply don't set `ANTHROPIC_API_KEY`.
+**Gear button (bottom left) → Recognition settings:** *Drawn formulas* can be **On device** (default) or **Claude**. Photos are always read on the device. With drawings on device too, Symvolo never contacts any external service. For a deployment that can never call Claude, simply don't set `ANTHROPIC_API_KEY`.
 
 The Claude prompts live in **`prompts.js`**, shared by the browser and the server, so both paths read notes the same way.
 
@@ -109,8 +109,9 @@ vendor/             self-hosted libraries and fonts (see vendor/NOTICE.md)
   models/comer/     CoMER encoder/decoder (INT8 ONNX) + vocabulary
   models/ppocr/     PP-OCRv5 mobile text detection + recognition + dictionary
   models/texo/      Texo formula recogniser (INT8 ONNX, encoder in 4 parts) + tokenizer
-  ocr/pagereader.js offline photo → blocks pipeline
-  ocr/texo.js       Texo preprocessing + decoding
+  ocr/pagereader.4.js  offline photo → blocks pipeline
+  ocr/texo.2.js        Texo preprocessing + decoding
+                       (version numbers in the file names, so browsers never run a cached older copy)
 vercel.json         function limits and headers
 .env.example        environment variables
 ```
