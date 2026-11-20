@@ -36,14 +36,17 @@ The drawing pad uses [ink-on](https://github.com/kimseungdae/ink-on), an INT8 ON
 
 `vendor/ocr/pagereader.js` reads a photo in six steps, all in the browser:
 
-1. **Clean.** Estimate and divide out uneven lighting and glare, flip chalkboards to dark-on-light, stretch the contrast.
-2. **Find lines.** PaddleOCR PP-OCRv5 text detection (DBNet), then join the word boxes on a line into line boxes.
-3. **Read lines.** PP-OCRv5 multilingual recognition (CTC), which gives characters with their positions and confidences. It handles umlauts and accents, so German or French notes work.
+1. **Clean.** Find the board in the photo and ignore the room and people around it. Decide light-on-dark region by region (a chalkboard in a bright lecture hall), flip chalk to dark-on-light, divide out uneven lighting and glare, and boost faint or half-erased chalk with local contrast.
+2. **Find lines.** PaddleOCR PP-OCRv5 text detection (DBNet). Lines glued together by tall brackets are split, divider strokes are dropped, word boxes on a line are joined, and columns stay apart. Columns are then read left to right.
+3. **Read lines.** PP-OCRv5 multilingual recognition (CTC), limited to Latin, Greek, digits and maths symbols, which gives characters with their positions and confidences. It handles umlauts and accents, so German or French notes work.
 4. **Text or maths?** Rules on each token: real words (≥3 letters, or common short words in English, German, French and Spanish) versus symbols, operators, digits and function names. A line becomes text, a formula, or text with inline `$…$` maths. Stacked pieces (numerator / bar / denominator) are merged.
-5. **Formulas → LaTeX.** The formula regions are cropped, thresholded, thinned and redrawn as pen strokes, then read by CoMER (the same model as the drawing pad). The text reading acts as a check: if CoMER's answer is much shorter than what was seen, or the line uses functions CoMER doesn't know (`dim`, `ker`, `det`, `exp`, `max`…), the LaTeX is built from the text reading instead and the block is flagged.
+5. **Formulas → LaTeX.** Each formula region is read by **[Texo](https://github.com/alephpi/Texo)**, a 20M-parameter formula recogniser trained on printed and handwritten maths. It knows the full LaTeX vocabulary of lecture notes (`\vec`, `\hat`, `\hbar`, `\delta`, `\varepsilon`, `\equiv`, `\partial`, `\nabla`, `\dim`, `\ker`, arrays…). Font-style noise is removed and spelled-out function names become operators. The text reading acts as a check: if Texo's answer is much shorter than what was seen, the LaTeX is built from the text reading instead and the block is flagged. If Texo can't load, CoMER (the drawing-pad model) is used.
 6. **Layout.** Headings (larger writing), paragraphs and multi-line derivations (aligned at `=`), with positions taken from the photo.
 
-**How good is it?** On neat, print-style handwriting it gets most text and simple formulas right. In our tests that included $e^{x}=1+x+\frac{x^{2}}{2}$ and $\dim V=\dim\ker T+\dim\operatorname{im}T$ exactly, plus mixed lines like "Konvergenz für $|x|<R$". Cursive, small writing, crowded boards, matrices and large 2-D structures come out much rougher. Expect to fix a few symbols per photo. A photo takes about 5–20 s. The first use downloads about 40 MB of models (cached afterwards).
+**How good is it?**
+- **Neat, print-style writing:** most text and formulas come out right. Examples read exactly in our tests: $T(av+w)=aT(v)+T(w)$, $\dim V=\dim\ker T+\dim\operatorname{im}T$, $e^{x}=1+x+\frac{x^{2}}{2}$ and $xe^{x}=xe^{x}-e^{x}+C$, plus mixed lines like "Konvergenz für $|x|<R$".
+- **Real lecture-hall photos:** layout, columns and positions are right, but individual symbols often aren't (a P read as T or 7, arrows read as bars). Handwritten text lines are the weakest part. Everything uncertain is outlined in orange.
+- **Speed and download:** 3–7 s per photo. The first use downloads about 100 MB (OCR 22 MB, Texo 61 MB, runtime 12 MB, CoMER 7.5 MB), cached afterwards.
 
 For messy boards, Claude does far better. Choose it in the import dialog, or as the default under the gear button:
 
@@ -59,7 +62,7 @@ The Claude prompts live in **`prompts.js`**, shared by the browser and the serve
 
 ## Deploy to Vercel
 
-1. Push this folder to a GitHub repository.
+1. Push this folder to a GitHub repository, and set `SOURCE_URL` near the top of the script in `index.html` to its URL (the AGPL source-code link; see *License*).
 2. In Vercel, **Add New → Project**, import the repository. Framework preset: **Other**. There is no build step and no output directory to set.
 3. Under **Settings → Environment Variables**, add:
 
@@ -105,7 +108,9 @@ vendor/             self-hosted libraries and fonts (see vendor/NOTICE.md)
   inkon/            ink-on recognition engine (two small patches, listed in NOTICE.md)
   models/comer/     CoMER encoder/decoder (INT8 ONNX) + vocabulary
   models/ppocr/     PP-OCRv5 mobile text detection + recognition + dictionary
+  models/texo/      Texo formula recogniser (INT8 ONNX, encoder in 4 parts) + tokenizer
   ocr/pagereader.js offline photo → blocks pipeline
+  ocr/texo.js       Texo preprocessing + decoding
 vercel.json         function limits and headers
 .env.example        environment variables
 ```
@@ -186,4 +191,14 @@ All bundled in `vendor/`. Details and patch notes are in [`vendor/NOTICE.md`](ve
 - [ONNX Runtime Web](https://onnxruntime.ai) 1.24.3 (MIT): runs the recognition model
 - [ink-on](https://github.com/kimseungdae/ink-on) 0.1.0 and its CoMER model (Apache-2.0): on-device handwriting recognition
 - [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) PP-OCRv5 mobile models (Apache-2.0): on-device text detection and recognition
+- [Texo](https://github.com/alephpi/Texo) by Sicheng Mao (AGPL-3.0): on-device formula recognition for photos
 - Geist and Geist Mono (SIL OFL), loaded from Google Fonts
+
+## License
+
+Symvolo is free software under the **GNU Affero General Public License v3.0** ([`LICENSE`](LICENSE)). It has to be, because it includes the AGPL-3.0 Texo model.
+
+What that means in practice:
+- You may use, modify and deploy Symvolo freely.
+- If you run a modified version for other people (for example on Vercel), you must offer them its source code under the same licence. The app has a **Source code** link in its help menu (`?` button). Set `SOURCE_URL` at the top of the script in `index.html` to your repository.
+- The bundled libraries and models keep their own licences (MIT / Apache-2.0); see [`vendor/NOTICE.md`](vendor/NOTICE.md).
