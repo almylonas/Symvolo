@@ -4,11 +4,11 @@
 //   2. Find text lines:       PP-OCRv5 mobile detection (DBNet).
 //   3. Read each line:        PP-OCRv5 mobile recognition (CTC) → characters with positions and confidences.
 //   4. Tell text from maths:  rules on the recognised tokens (words vs. symbols / operators / digits).
-//   5. Read formulas:         CoMER (handwritten maths → LaTeX) on cleaned, thinned crops of the formula regions.
+//   5. Read formulas:         Texo (printed + handwritten maths → LaTeX) on the formula regions; CoMER as fallback.
 //   6. Lay out blocks:        headings, paragraphs, aligned derivations — with positions as fractions of the photo,
 //                             the same format the Claude path produces.
 //
-// MIT — part of Symvolo. Models: PP-OCRv5 (Apache-2.0, PaddlePaddle), CoMER via ink-on (Apache-2.0).
+// Part of Symvolo (AGPL-3.0). Models: PP-OCRv5 (Apache-2.0, PaddlePaddle), Texo (AGPL-3.0), CoMER via ink-on (Apache-2.0).
 
 const DET_MAX_SIDE = 1280, REC_H = 48, COMER_H = 256, COMER_CONTENT_H = 112, COMER_MAX_W = 1024;
 
@@ -324,7 +324,9 @@ function tidyTex(s){
   for (const tok of String(s || '').trim().split(/\s+/).filter(Boolean)) { if (out && /\\[a-zA-Z]+$/.test(out) && /^[a-zA-Z]/.test(tok)) out += ' '; out += tok; }
   return out;
 }
+let TEXO = null;   // set by createPageReader when the Texo model loads
 async function readFormula(ink, page, r){
+  if (TEXO) { try { const t = await TEXO.recognize(page.gray, page.W, page.H, r); if (!t.looped) return t.latex; } catch (e) { console.warn('Texo failed', e); } }
   const input = comerInput(page, r); if (!input) return '';
   try { return tidyTex((await ink.engine.recognize(input, ink.vocab, 'auto')).latex); } catch { return ''; }
 }
@@ -341,7 +343,7 @@ const texLen = t => t.replace(/\\(begin|end)\{[a-z]+\}/g, '').replace(/\\[a-zA-Z
 // CoMER for the 2-D structure, the text reader as a sanity check and a fallback.
 async function bestFormula(ink, page, r, ocr, conf){
   const plain = ocr.replace(/\s+/g, '');
-  if (NOT_IN_COMER.test(ocr) && conf >= .6) return { tex: ocrToTex(ocr), weak: true };
+  if (!TEXO && NOT_IN_COMER.test(ocr) && conf >= .6) return { tex: ocrToTex(ocr), weak: true };
   const tex = await readFormula(ink, page, r);
   if (!tex) return { tex: ocrToTex(ocr), weak: true };
   if (conf >= .55 && plain.length >= 2 && texLen(tex) < .55 * plain.length) return { tex: ocrToTex(ocr), weak: true };
@@ -357,7 +359,9 @@ function alignRows(rows){
 function topLevelIndex(s, ch){ let d = 0; for (let i = 0; i < s.length; i++) { const c = s[i]; if (c === '{') d++; else if (c === '}') d--; else if (c === ch && d === 0) return i; } return -1; }
 
 export async function createPageReader({ ort, ink, fetchModel }){
-  const [detBuf, recBuf, dictTxt] = await Promise.all([fetchModel('det_v5.ort'), fetchModel('rec_v5.onnx'), fetchModel('dict_v5.txt', 'text')]);
+  const [detBuf, recBuf, dictTxt] = await Promise.all([fetchModel('ppocr/det_v5.ort'), fetchModel('ppocr/rec_v5.onnx'), fetchModel('ppocr/dict_v5.txt', 'text')]);
+  try { const { createTexo } = await import('./texo.js'); TEXO = await createTexo({ ort, fetchModel }); }
+  catch (e) { console.warn('Texo unavailable — using CoMER for formulas', e); TEXO = null; }
   const opts = { executionProviders: ['wasm'] };
   const det = await ort.InferenceSession.create(new Uint8Array(detBuf), opts);
   const rec = await ort.InferenceSession.create(new Uint8Array(recBuf), opts);
@@ -386,20 +390,29 @@ export async function createPageReader({ ort, ink, fetchModel }){
         : (nWord >= 2 || longWords >= 1) ? 'mixed' : 'math';
       lines.push({ ...b, ...r, toks, kind });
     }
-    // merge stacked formula pieces (fractions: numerator / bar / denominator) into one region
+    // Stacked formula pieces (a numerator, a superscript on its own, a fraction's denominator) join the
+    // nearest formula line they overlap horizontally — never two full-size lines with each other.
     const medH = (() => { const hs = lines.map(bh_).sort((a, b) => a - b); return hs[hs.length >> 1] || 40; })();
     for (let changed = true; changed;) {
       changed = false;
-      for (let i = 0; i < lines.length && !changed; i++) for (let j = 0; j < lines.length && !changed; j++) {
-        if (i === j) continue; const a = lines[i], b = lines[j];
-        if (a.kind === 'text' || b.kind === 'text' || a.kind === 'mixed' && b.kind === 'mixed') continue;
-        const gap = b.y0 - a.y1, hov = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
-        const small = Math.min(bh_(a), bh_(b)) < .75 * medH || Math.min(bw_(a), bw_(b)) < .45 * Math.max(bw_(a), bw_(b));
-        if (gap > -.3 * medH && gap < .45 * medH && hov > .5 * Math.min(bw_(a), bw_(b)) && small) {
-          const m = { x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1), text: a.text + ' ' + b.text, conf: Math.min(a.conf, b.conf), toks: [], kind: a.kind === 'mixed' || b.kind === 'mixed' ? 'mixed' : 'math', merged: true, chars: [...a.chars, ...b.chars] };
-          if (m.kind === 'mixed') m.toks = [...a.toks, ...b.toks];
-          lines.splice(Math.max(i, j), 1); lines.splice(Math.min(i, j), 1, m); changed = true;
+      for (const pc of [...lines].sort((a, b) => bw_(a) * bh_(a) - bw_(b) * bh_(b))) {
+        if (pc.kind === 'text') continue;
+        let host = null, bestD = Infinity;
+        for (const l of lines) {
+          if (l === pc || l.kind === 'text') continue;
+          const small = bh_(pc) < .75 * medH || bw_(pc) < .45 * bw_(l);
+          if (!small || bw_(pc) * bh_(pc) > bw_(l) * bh_(l)) continue;
+          const hov = Math.min(l.x1, pc.x1) - Math.max(l.x0, pc.x0), vgap = Math.max(l.y0 - pc.y1, pc.y0 - l.y1), hgap = -hov;
+          // stacked over/under the line, or right beside it (a fraction or exponent written after "x −")
+          const d = hov > .5 * bw_(pc) ? vgap : Math.max(hgap, vgap);
+          if (d < .55 * medH && hgap < .9 * medH && d < bestD) { bestD = d; host = l; }
         }
+        if (!host) continue;
+        const above = pc.y0 < host.y0;
+        Object.assign(host, { x0: Math.min(host.x0, pc.x0), y0: Math.min(host.y0, pc.y0), x1: Math.max(host.x1, pc.x1), y1: Math.max(host.y1, pc.y1),
+          text: above ? pc.text + ' ' + host.text : host.text + ' ' + pc.text, conf: Math.min(host.conf, pc.conf), merged: true, chars: [...host.chars, ...pc.chars] });
+        if (host.kind === 'mixed' || pc.kind === 'mixed') { host.kind = 'mixed'; host.toks = [...(host.toks || []), ...(pc.toks || [])]; }
+        lines.splice(lines.indexOf(pc), 1); changed = true; break;
       }
     }
     // columns: split where no line crosses a vertical gap (boards are often written in two or three columns)
@@ -440,7 +453,7 @@ export async function createPageReader({ ort, ink, fetchModel }){
       const others = lines.filter(o => o !== l && o.kind !== 'math' && o.text.length >= 4), med = (arr) => { const v = arr.sort((a, b) => a - b); return v[v.length >> 1]; };
       const oP = others.length ? med(others.map(pitch)) : textPitch, oH = others.length ? med(others.map(bh_)) : textH, words = l.text.split(' ').length;
       const heading = l.kind === 'text' && l.text.length >= 3 && words <= 6 && !/[.:,;]$/.test(l.text)
-        && (pitch(l) > 1.2 * oP || h > 1.25 * oH || (l === lines[0] && words <= 4 && pitch(l) > oP));
+        && (l.conf >= .7 && pitch(l) > 1.2 * oP || h > 1.25 * oH && l.conf >= .5 || (l === lines[0] && words <= 4 && pitch(l) > oP && l.conf >= .6));
       const near = last && last.col === l.col && l.y0 - last.y1 < .9 * Math.max(h, last.lh) && Math.abs(l.x0 - last.x0) < 2.2 * Math.max(h, last.lh);
       if (near && !heading && !last.heading && last.kind === 'math' && l.kind === 'math') { last.rows.push(l.out); Object.assign(last, ext(last, l)); last.weak ||= l.weak; last.conf = Math.min(last.conf, l.conf); continue; }
       if (near && !heading && !last.heading && last.kind !== 'math' && l.kind !== 'math') { last.rows.push(l.out); Object.assign(last, ext(last, l)); last.weak ||= l.weak; last.conf = Math.min(last.conf, l.conf); continue; }
