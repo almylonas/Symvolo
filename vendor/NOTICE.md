@@ -13,8 +13,8 @@ Symvolo as a whole is licensed under the GNU AGPL-3.0 (see `/LICENSE`), because 
 | `models/comer/` | INT8 ONNX export of [CoMER](https://github.com/Green-Wood/CoMER) (ECCV 2022), from the ink-on repository | — | Apache-2.0, as distributed by ink-on |
 | `models/ppocr/` | [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) PP-OCRv5 mobile text detection (`det_v5.ort`) and multilingual recognition (`rec_v5.onnx`, `dict_v5.txt`), from the npm package `pdfmarkdown-ppocrv5-models` 1.0.0 | v5 | Apache-2.0 (see `models/ppocr/LICENSE`) |
 | `models/texo/` | [Texo](https://github.com/alephpi/Texo) formula recogniser by Sicheng Mao: ONNX export from [Texo-web](https://github.com/alephpi/Texo-web), re-quantised by Symvolo (8-bit matrix weights via onnxruntime dynamic quantisation; encoder split into `encoder_int8.onnx.000…003`, which are concatenated before loading) | — | AGPL-3.0 (see `models/texo/LICENSE`) |
-| `ocr/texo.js` | Symvolo's Texo runner (preprocessing after Texo-web's `imageProcessor.ts`, greedy decoding with KV cache, output clean-up) | — | AGPL-3.0 |
-| `ocr/pagereader.js` | Symvolo's offline page reader (cleaning, line detection, text/formula separation, layout) | — | AGPL-3.0 |
+| `ocr/texo.2.js` | Symvolo's Texo runner (preprocessing after Texo-web's `imageProcessor.ts`, greedy decoding with KV cache, output clean-up) | — | AGPL-3.0 |
+| `ocr/pagereader.4.js` | Symvolo's offline page reader (cleaning, line detection, text/formula separation, layout) | — | AGPL-3.0 |
 
 ## Changes made to ink-on
 
