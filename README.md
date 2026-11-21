@@ -1,11 +1,16 @@
 # Symvolo
 
-*σύμβολο — symbol.* **A versatile editor for mathematical notes, with LaTeX as its engine.** Write prose and formulas, place every block freely on a cross-grid workspace, edit formulas visually or as LaTeX source, and export to Markdown, PDF or a compilable `.tex` document. Notes can also be brought in from photos of boards and pages, or drawn by hand. That recognition is in **beta**.
+*σύμβολο — symbol.* **A versatile editor for mathematical notes, with LaTeX as its engine.** Write prose and formulas, draw Feynman diagrams, electrical circuits and quantum circuits, place every block freely on a cross-grid workspace, edit formulas visually or as LaTeX source, and export to Markdown, PDF or a compilable `.tex` document. Notes can also be brought in from photos of boards and pages, or drawn by hand. That recognition is in **beta**.
 
 ## Features
 
 - **Welcome screen.** On opening, a translucent overlay over the live workspace, typeset in LaTeX style, shows the name, what Symvolo does and a **Start writing** button. Pressing it (or Enter) fades the overlay and the workspace is ready immediately. It can be shown again from the `?` menu.
 - **Two ways to edit.** Formulas: edit them directly, like an equation editor (MathLive, with an on-screen math keyboard), or as LaTeX code. Text: type directly, with formulas inside it that you click to edit, or edit the Markdown + `$LaTeX$` source.
+- **Diagrams, drawn graphically (`D`).** Three editors, no code needed; double-click a diagram on the workspace to edit it again.
+  - **Feynman diagrams.** Pick a line (fermion, antifermion, photon, gluon, W boson, scalar, charged scalar, ghost, plain) and drag from point to point; lines join at shared points. Curve a line by dragging its handle, add labels and momentum arrows, and give vertices a dot, blob, crossed dot or ring.
+  - **Electrical circuits.** Resistor, capacitor, inductor, voltage and current source, battery, diode, LED, switch, lamp, ammeter, voltmeter, wires (they turn right angles for you), ground, junctions and terminals. Drag between crosses or drop from the list. Connected parts stretch along when you move one, and junction dots appear by themselves. American or European symbols.
+  - **Quantum circuits.** Drop gates (H, X, Y, Z, S, T, S†, T†, rotations, phase, custom and multi-qubit gates), controls, open controls, targets, swaps, measurements and barriers onto qubit wires. Controls connect to their column automatically; wires turn classical after a measurement.
+  - Every diagram exports as real LaTeX — **TikZ-Feynman**, **CircuiTikZ** or **quantikz** — inside the `.tex` export, with the packages added to the preamble. The inspector and the editor's **LaTeX** button show the code to copy. In Markdown, diagrams become a `latex` code block. Each editor has examples to start from.
 - **Cross-grid workspace.** Full-screen canvas of small crosses. Pan, zoom to the cursor, fit to screen, and snap blocks to the crosses (toggle with `G`).
 - **Free layout.** Drag, resize, multi-select (marquee or `Shift`+click), line up left or top edges, space blocks evenly, layer order, lock, duplicate, nudge with the arrow keys. Each block has its own size, ink colour and background (none, card or highlight).
 - **Workspaces.** Create, rename, duplicate, delete and switch between them. Choose a workspace colour from 7 presets or any custom colour; the interface turns dark on dark colours. Note lettering can be the LaTeX serif or a sans.
@@ -14,7 +19,7 @@
   - **Markdown** (`.md`): text with `$…$` and `$$…$$`, in reading order.
   - **PDF, as on screen**: the workspace with its colours, cut into A4 pages.
   - **PDF, LaTeX document**: typeset as an article in Computer Modern, with a title, author, date, numbered sections and equations and a live page preview.
-  - **LaTeX source** (`.tex`): the same document as compilable LaTeX (`article`, `amsmath`). It compiles with `pdflatex` or in Overleaf.
+  - **LaTeX source** (`.tex`): the same document as compilable LaTeX (`article`, `amsmath`, plus `tikz-feynman`, `circuitikz` or `quantikz` when the workspace has diagrams). It compiles with `pdflatex` or in Overleaf. TikZ-Feynman prints a few harmless warnings under `pdflatex` because its automatic layout needs LuaLaTeX; Symvolo places every vertex itself, so it does not need it.
 - **Photos → LaTeX (beta).** Drop, choose or paste photos of handwritten or printed notes, handouts, whiteboards or chalkboards (up to 5 at once). They become text and formula blocks laid out like the original. An **offline pipeline** reads them in the browser: it finds the lines, reads the text, tells formulas from prose and turns the formulas into LaTeX. Anything doubtful is outlined in orange. Select a block to see the part of the photo it came from, right above its editor, and switch a block between text and formula with one click if it was classified wrongly. You can keep the photo next to the notes.
 - **Handwriting → LaTeX (beta), on your device.** Draw a symbol or an equation with a mouse, pen or finger (`P`). A small neural network (CoMER, 7 MB) reads it **in the browser, offline**, while you draw. No image leaves your machine. You get a live preview and editable LaTeX, then add it to the workspace. From the inspector you can also draw a replacement for a formula, or draw a formula into the middle of a sentence. Claude can be switched on as a more accurate engine (with up to three alternative readings).
 - Undo/redo, autosave in the browser, paste an image anywhere to convert it, and a keyboard shortcut for nearly everything (`?` button in the app).
@@ -101,6 +106,7 @@ Without a key, `npx serve .` (or any static server) runs the whole app, includin
 
 ```
 index.html          the whole app (UI, canvas, editor, exports)
+js/diagrams.js      Feynman, circuit and quantum-circuit editors, SVG rendering and TikZ export
 prompts.js          prompts for photo import and handwriting, shared by browser and server
 api/recognize.js    POST: images → Claude → streamed text (Vercel function)
 api/health.js       GET: is recognition configured? is an access code required?
@@ -153,11 +159,17 @@ The browser shrinks images to at most 1568 px on the long edge before sending th
         "size": 1, "ink": null, "fill": "none", "z": 3, "locked": false },
       { "id": "…", "kind": "text", "x": 156, "y": 180, "w": 480, "content": "A $2\\pi$-periodic …",
         "align": "left", "size": 1, "ink": "#4a6cf7", "fill": "card", "z": 2 },
-      { "id": "…", "kind": "image", "x": 0, "y": 0, "w": 420, "src": "data:image/jpeg;base64,…", "op": 1, "z": 0 }
+      { "id": "…", "kind": "image", "x": 0, "y": 0, "w": 420, "src": "data:image/jpeg;base64,…", "op": 1, "z": 0 },
+      { "id": "…", "kind": "diagram", "x": 600, "y": 120, "size": 1.25,
+        "dia": { "type": "feynman",
+                 "v": [{ "id": "a", "x": 0, "y": 0, "style": "none", "label": "e^-", "lpos": "auto" }, …],
+                 "e": [{ "id": "…", "a": "a", "b": "c", "t": "fermion", "bend": 0, "label": "", "side": 1, "mom": "" }, …] } }
     ]
   }
 }
 ```
+
+Diagram coordinates are in grid units (one cross = one unit). Circuits store `el` (two-terminal parts with ends `a`, `b`) and `pt` (ground, junction, terminal); quantum circuits store `n` qubits, `inL`/`outL` labels, gates `g` with row `r` and column `c`, and barrier columns `bar`.
 
 Files saved by the earlier prototype (`.crux.json`) open too.
 
@@ -168,6 +180,8 @@ Files saved by the earlier prototype (`.crux.json`) open too.
 | Double-click | new text block / edit a block |
 | `T` / `M` | text / formula tool |
 | `P` | handwrite a formula |
+| `D` | draw a diagram (Feynman, circuit, quantum) |
+| In a diagram editor | `V` select, `E`/`X` eraser, number or letter keys pick a part (shown in the list), `Delete` removes, `Ctrl Z` undo, `Ctrl Enter` save, right-click erases |
 | `I` | import photos |
 | `Space`+drag, two-finger scroll | pan |
 | `Ctrl`+wheel, pinch | zoom |
