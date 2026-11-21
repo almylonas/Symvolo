@@ -69,6 +69,7 @@ svg.i{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-widt
 .blk .body mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 .1em}
 .blk .body .katex-display{margin:.2em 0}
 .blk .body .err{color:var(--danger);font-family:var(--mono);font-size:.75em;white-space:pre-wrap}
+.blk.k-diagram{white-space:nowrap;padding:8px 10px}
 .blk.k-image{padding:0;line-height:0}
 .blk.k-image img{width:100%;height:auto;border-radius:8px;display:block;pointer-events:none}
 .blk .rz{position:absolute;right:-7px;bottom:-7px;width:14px;height:14px;border-radius:4px;background:var(--panel);border:2px solid var(--accent);cursor:nwse-resize;display:none}
@@ -131,7 +132,7 @@ svg.i{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-widt
 #insp .ih{display:flex;align-items:center;gap:8px;padding:10px 10px 10px 14px;border-bottom:1px solid var(--line)}
 #insp .ib{overflow:auto;padding:14px;display:flex;flex-direction:column;gap:14px;overscroll-behavior:contain}
 .chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:999px;background:var(--panel-3);font-size:12px;font-weight:600;color:var(--muted)}
-.chip.k-math{background:var(--accent-soft);color:var(--accent)}
+.chip.k-math,.chip.k-diagram{background:var(--accent-soft);color:var(--accent)}
 .grow{flex:1}
 .sec{display:flex;flex-direction:column;gap:8px}
 .sec h4{margin:0;font-size:12.5px;font-weight:600;color:var(--muted)}
@@ -249,6 +250,7 @@ input[type=range]{accent-color:var(--accent);flex:1}
 .leq{padding:4px 0 14px}.leq .katex-display{margin:0}
 .llist ul,.llist ol{margin:0;padding-left:28px}.llist li{margin:0 0 3px}
 .lfig img{display:block;max-width:72%;max-height:440px;margin:4px auto 6px;border:1px solid #ddd}
+.ldia{display:flex;justify-content:center;font-size:17px;padding:6px 0 16px}
 .lpage code{font-family:"Courier New",monospace;font-size:.92em}
 .lpage mark{background:none;font-style:italic}
 
@@ -279,6 +281,7 @@ body.landing .ui,body.landing #empty,body.landing #insp,body.landing #toast{opac
 .land-demo{display:grid;gap:4px;padding:10px 12px;border-radius:8px;background:var(--panel-2);font-size:16px;color:var(--fg)}
 .land-demo code{font-family:KaTeX_Typewriter,monospace;font-size:13px;color:var(--muted)}
 .land-demo .arrow{display:none}
+.land-dia{place-items:center;font-size:12.5px;padding:8px}
 .beta{font-family:KaTeX_Main,serif;font-weight:400;font-style:italic;font-size:13px;padding:1px 8px;border-radius:999px;background:var(--warn-soft);color:var(--warn);border:1px solid color-mix(in srgb,var(--warn) 40%,transparent)}
 .land-foot{margin:0;text-align:center;font-size:14px;color:var(--subtle)}
 .land-foot a{color:var(--accent)}
@@ -346,6 +349,7 @@ body.landing .ui,body.landing #empty,body.landing #insp,body.landing #toast{opac
   <symbol id="i-arrowr" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
   <symbol id="i-alignl" viewBox="0 0 24 24"><path d="M4 4v16M8 8h10M8 16h6"/></symbol>
   <symbol id="i-alignt" viewBox="0 0 24 24"><path d="M4 4h16M8 8v10M16 8v6"/></symbol>
+  <symbol id="i-dia" viewBox="0 0 24 24"><path d="M3 4l6 8-6 8M9 12h1.5c.6-1.6 1.4-1.6 2 0s1.4 1.6 2 0 1.4-1.6 2 0 1.4 1.6 2 0H21"/></symbol>
   <symbol id="i-distv" viewBox="0 0 24 24"><path d="M4 4h16M4 20h16M8 10h8v4H8z"/></symbol>
 </svg>
 
@@ -358,11 +362,12 @@ body.landing .ui,body.landing #empty,body.landing #insp,body.landing #toast{opac
   <div class="card">
     <div class="big"><svg class="i"><use href="#i-cross"/></svg></div>
     <h3>This workspace is empty</h3>
-    <p>Double-click anywhere to write, or bring in a photo of your notes or a board and Symvolo turns it into editable LaTeX.</p>
+    <p>Double-click anywhere to write, draw a Feynman diagram or a circuit, or bring in a photo of your notes and Symvolo turns it into editable LaTeX.</p>
     <div class="row" style="justify-content:center">
       <button class="btn primary" data-act="import"><svg class="i"><use href="#i-scan"/></svg>Import notes</button>
       <button class="btn outline" data-act="add-math"><svg class="i"><use href="#i-sigma"/></svg>Formula</button>
       <button class="btn outline" data-act="add-text"><svg class="i"><use href="#i-text"/></svg>Text</button>
+      <button class="btn outline" data-act="diagram"><svg class="i"><use href="#i-dia"/></svg>Diagram</button>
       <button class="btn outline" data-act="pad"><svg class="i"><use href="#i-pen"/></svg>Draw</button>
     </div>
   </div>
@@ -390,6 +395,7 @@ body.landing .ui,body.landing #empty,body.landing #insp,body.landing #toast{opac
   <div class="sep"></div>
   <button class="ibtn" data-tool="text" aria-label="Text block"><svg class="i"><use href="#i-text"/></svg><span class="tip">Text block<kbd>T</kbd></span></button>
   <button class="ibtn" data-tool="math" aria-label="Formula block"><svg class="i"><use href="#i-sigma"/></svg><span class="tip">Formula block<kbd>M</kbd></span></button>
+  <button class="ibtn" data-act="diagram" aria-label="Diagram"><svg class="i"><use href="#i-dia"/></svg><span class="tip">Diagram — Feynman, circuit, quantum<kbd>D</kbd></span></button>
   <button class="ibtn" data-act="pad" aria-label="Handwrite a formula"><svg class="i"><use href="#i-pen"/></svg><span class="tip">Handwrite → LaTeX<kbd>P</kbd></span></button>
   <button class="ibtn" data-act="import" aria-label="Import notes"><svg class="i"><use href="#i-scan"/></svg><span class="tip">Photo → LaTeX<kbd>I</kbd></span></button>
   <div class="sep"></div>
@@ -421,7 +427,7 @@ body.landing .ui,body.landing #empty,body.landing #insp,body.landing #toast{opac
       <h1 id="landTitle">Symvolo</h1>
       <p class="land-sub">Mathematical notes, typeset in <span data-tex="\LaTeX"></span></p>
     </header>
-    <p class="land-lede">A free-form workspace for mathematical notes. Write prose and formulas, place every block wherever it belongs on the grid, edit formulas visually or as <span data-tex="\LaTeX"></span> source, and export to Markdown, PDF or a compilable <span class="tt">.tex</span> document. <span data-tex="\LaTeX"></span> is the engine underneath everything.</p>
+    <p class="land-lede">A free-form workspace for mathematical notes. Write prose and formulas, draw diagrams, place every block wherever it belongs on the grid, edit formulas visually or as <span data-tex="\LaTeX"></span> source, and export to Markdown, PDF or a compilable <span class="tt">.tex</span> document. <span data-tex="\LaTeX"></span> is the engine underneath everything.</p>
     <div class="land-cta">
       <button class="btn primary big" id="startBtn">Start writing<svg class="i" style="width:17px"><use href="#i-arrowr"/></svg></button>
       <button class="btn outline big" id="landOpen"><svg class="i"><use href="#i-open"/></svg>Open a saved workspace</button>
@@ -429,8 +435,9 @@ body.landing .ui,body.landing #empty,body.landing #insp,body.landing #toast{opac
     <div class="land-feats">
       <section class="feat"><h2><span class="sn">1</span><span><span data-tex="\LaTeX"></span> at the core</span></h2><p>Every formula is real <span data-tex="\LaTeX"></span>: type the source or edit it like an equation editor, and see it typeset as you go.</p>
         <div class="land-demo"><code>\int_0^1 x^2\,dx=\tfrac13</code><span class="arrow">⟶</span><span data-tex="\int_0^1 x^2\,dx=\tfrac13"></span></div></section>
-      <section class="feat"><h2><span class="sn">2</span><span>Free layout</span></h2><p>Blocks of text and mathematics sit on a cross grid. Move, size, colour and align them; keep several workspaces and save each one exactly as you left it.</p></section>
-      <section class="feat"><h2><span class="sn">3</span><span>Export anywhere</span></h2><p>Markdown with inline <span class="tt">$…$</span>, a PDF of the workspace, a typeset article with numbered sections and equations, or the <span class="tt">.tex</span> source for Overleaf.</p></section>
+      <section class="feat"><h2><span class="sn">2</span><span>Diagrams, drawn</span></h2><p>Feynman diagrams, electrical circuits and quantum circuits: drag particles, components and gates onto the grid, no code. Each becomes TikZ-Feynman, CircuiTikZ or quantikz in your <span class="tt">.tex</span>.</p>
+        <div class="land-demo land-dia" id="landDia" aria-hidden="true"></div></section>
+      <section class="feat"><h2><span class="sn">3</span><span>Lay out, then export</span></h2><p>Move, size, colour and align every block; keep several workspaces. Export Markdown with inline <span class="tt">$…$</span>, a PDF of the workspace, a typeset article, or the <span class="tt">.tex</span> source for Overleaf.</p></section>
       <section class="feat"><h2><span class="sn">4</span><span>Bring notes in <span class="beta">beta</span></span></h2><p>Import a photo of a board or a notebook page, or draw a formula by hand, and get editable text and <span data-tex="\LaTeX"></span>, read on your device. Recognition is in beta: check the result.</p></section>
     </div>
     <p class="land-foot">Runs entirely in your browser. Free software under the AGPL-3.0 · <a id="landSrc" href="#" target="_blank" rel="noopener">Source code</a></p>
@@ -443,6 +450,7 @@ body.landing .ui,body.landing #empty,body.landing #insp,body.landing #toast{opac
 <input type="file" id="fileWs" accept=".json,application/json" hidden>
 
 <script src="vendor/katex.min.js"></script>
+<script src="js/diagrams.js"></script>
 <script>
 {
 const G = 24;
@@ -542,17 +550,23 @@ function drawBlock(b){
   }
   el.className = `blk k-${b.kind} f-${b.fill || 'none'}${sel.has(b.id) ? ' sel' : ''}${b.unsure ? ' unsure' : ''}${b.locked ? ' locked' : ''}`;
   el.style.left = b.x + 'px'; el.style.top = b.y + 'px'; el.style.zIndex = b.z || 1;
-  el.style.width = b.kind === 'math' ? '' : (b.w || 360) + 'px';
+  el.style.width = b.kind === 'math' || b.kind === 'diagram' ? '' : (b.w || 360) + 'px';
   el.style.setProperty('--sc', b.size || 1);
   el.style.color = b.ink || '';
   el.style.textAlign = b.kind === 'text' ? (b.align || 'left') : '';
-  const key = b.kind + '|' + (b.kind === 'image' ? b.src.length + ':' + b.src.slice(-40) : b.content);
+  const dc = b.kind === 'diagram' ? diaColors(b) : null;
+  const key = b.kind + '|' + (b.kind === 'image' ? b.src.length + ':' + b.src.slice(-40) : b.kind === 'diagram' ? JSON.stringify(b.dia) + dc.ink + dc.bg : b.content);
   if (el._key !== key) {
-    el.firstChild.innerHTML = b.kind === 'math' ? tex(b.content || '\\square', true) : b.kind === 'image' ? `<img src="${b.src}" alt="Photo of notes" draggable="false">` : (b.content.trim() ? renderRich(b.content) : '<p style="opacity:.45">Empty text</p>');
+    el.firstChild.innerHTML = b.kind === 'diagram' ? SD.html(b.dia, dc) : b.kind === 'math' ? tex(b.content || '\\square', true) : b.kind === 'image' ? `<img src="${b.src}" alt="Photo of notes" draggable="false">` : (b.content.trim() ? renderRich(b.content) : '<p style="opacity:.45">Empty text</p>');
     el._key = key;
   }
   if (b.kind === 'image') el.firstChild.firstChild.style.opacity = b.op ?? 1;
   return el;
+}
+function mixHex(a, b, t){ const p = h => h.match(/\w\w/g).map(x => parseInt(x, 16)); const A = p(a), B = p(b); return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0')).join(''); }
+function diaColors(b, fill = b.fill){
+  const cs = getComputedStyle(root), dark = root.dataset.chrome === 'dark', bg = /^#[0-9a-f]{6}$/i.test(W().bg) ? W().bg : '#f6f6f3';
+  return { ink: b.ink || cs.getPropertyValue('--note-ink').trim() || '#17191e', bg: fill === 'card' ? (dark ? mixHex(bg, '#ffffff', .07) : '#ffffff') : fill === 'mark' ? mixHex(bg, '#ffd60a', dark ? .22 : .38) : bg };
 }
 function renderAll(){
   const ids = new Set(W().blocks.map(b => b.id));
@@ -576,6 +590,7 @@ function applySurface(){
   stage.style.backgroundImage = crossURL;
   root.style.setProperty('--pad-cross', crossURL);
   $('#surfSw').style.background = w.bg;
+  for (const b of w.blocks) if (b.kind === 'diagram' && els.has(b.id)) drawBlock(b);
   applyView();
 }
 function applyView(){
@@ -666,7 +681,7 @@ stage.addEventListener('pointermove', e => {
     for (const it of drag.items) { it.b.x = snapV(it.x + dx); it.b.y = snapV(it.y + dy); const el = els.get(it.b.id); el.style.left = it.b.x + 'px'; el.style.top = it.b.y + 'px'; }
   } else if (mode === 'resize') {
     const b = drag.b, dx = (e.clientX - drag.sx) / v.z;
-    if (b.kind === 'math') b.size = clamp(+(drag.size * (drag.w + dx) / drag.w).toFixed(2), .4, 5);
+    if (b.kind === 'math' || b.kind === 'diagram') b.size = clamp(+(drag.size * (drag.w + dx) / drag.w).toFixed(2), .4, 5);
     else b.w = Math.max(b.kind === 'image' ? 80 : 120, S.snap ? Math.round((drag.w + dx) / (G / 2)) * (G / 2) : Math.round(drag.w + dx));
     drawBlock(b);
   } else if (mode === 'marquee') {
@@ -690,7 +705,7 @@ stage.addEventListener('pointerup', endPointer);
 stage.addEventListener('pointercancel', endPointer);
 stage.addEventListener('dblclick', e => {
   const bel = document.elementFromPoint(e.clientX, e.clientY)?.closest('.blk');
-  if (bel) { setSel([bel.dataset.id]); openEditorFocus = true; renderInspector(); return; }
+  if (bel) { setSel([bel.dataset.id]); const b = blk(bel.dataset.id); if (b?.kind === 'diagram') { editDiagram(b); return; } openEditorFocus = true; renderInspector(); return; }
   if (tool === 'select') createAt('text', e.clientX, e.clientY);
 });
 stage.addEventListener('wheel', e => {
@@ -724,8 +739,8 @@ addEventListener('keydown', e => {
     const dx = e.key === 'ArrowLeft' ? -st : e.key === 'ArrowRight' ? st : 0, dy = e.key === 'ArrowUp' ? -st : e.key === 'ArrowDown' ? st : 0;
     for (const id of sel) { const b = blk(id); if (b && !b.locked) { b.x += dx; b.y += dy; drawBlock(b); } } commitSoon(); return;
   }
-  if (e.key === 'Enter' && sel.size === 1) { e.preventDefault(); openEditorFocus = true; renderInspector(); return; }
-  const map = { v: () => setTool('select'), h: () => setTool('pan'), t: () => setTool('text'), m: () => setTool('math'), i: () => openImport(), p: () => openPad({ kind: 'new' }), g: toggleSnap, '0': () => { const r = stage.getBoundingClientRect(); zoomAt(1, r.width / 2, r.height / 2); }, '1': () => fit(), '+': () => zoomStep(1.2), '=': () => zoomStep(1.2), '-': () => zoomStep(1 / 1.2) };
+  if (e.key === 'Enter' && sel.size === 1) { e.preventDefault(); const b = blk([...sel][0]); if (b?.kind === 'diagram') { editDiagram(b); return; } openEditorFocus = true; renderInspector(); return; }
+  const map = { v: () => setTool('select'), h: () => setTool('pan'), t: () => setTool('text'), m: () => setTool('math'), i: () => openImport(), p: () => openPad({ kind: 'new' }), d: () => newDiagram(), g: toggleSnap, '0': () => { const r = stage.getBoundingClientRect(); zoomAt(1, r.width / 2, r.height / 2); }, '1': () => fit(), '+': () => zoomStep(1.2), '=': () => zoomStep(1.2), '-': () => zoomStep(1 / 1.2) };
   map[k]?.();
 });
 addEventListener('keyup', e => { if (e.key === ' ') { spaceDown = false; if (mode !== 'pan') stage.classList.remove('panning'); } });
@@ -777,8 +792,8 @@ function renderInspector(){
     return;
   }
   const b = list[0];
-  const kindName = { math: 'Formula', text: 'Text', image: 'Photo' }[b.kind];
-  head.innerHTML = `<span class="chip k-${b.kind}">${icon(b.kind === 'math' ? 'sigma' : b.kind === 'text' ? 'text' : 'scan', 'style="width:13px;height:13px"')}${kindName}</span><span class="grow"></span>
+  const kindName = { math: 'Formula', text: 'Text', image: 'Photo', diagram: 'Diagram' }[b.kind];
+  head.innerHTML = `<span class="chip k-${b.kind}">${icon(b.kind === 'math' ? 'sigma' : b.kind === 'text' ? 'text' : b.kind === 'diagram' ? 'dia' : 'scan', 'style="width:13px;height:13px"')}${kindName}</span><span class="grow"></span>
     <button class="ibtn" data-i="lock" aria-pressed="${!!b.locked}" aria-label="${b.locked ? 'Unlock' : 'Lock position'}" title="${b.locked ? 'Unlock' : 'Lock position'}">${icon(b.locked ? 'lock' : 'unlock')}</button>
     <button class="ibtn" data-i="close" aria-label="Close">${icon('x')}</button>`;
   let h = '';
@@ -792,6 +807,14 @@ function renderInspector(){
     h += `<div class="sec"><div class="seg wide" role="tablist"><button data-tab="visual" aria-pressed="${inspTab.text === 'visual'}">Visual</button><button data-tab="latex" aria-pressed="${inspTab.text === 'latex'}">Source</button></div>
       <div id="editPane"></div>
       <div class="hint" id="editHint"></div></div>`;
+  } else if (b.kind === 'diagram') {
+    const lx = SD.latex(b.dia);
+    h += `<div class="sec"><h4>${esc(SD.name(b.dia))}</h4>
+      <button class="btn primary" data-i="dedit">${icon('pen')}Edit diagram</button>
+      <div class="hint">Double-click the diagram to open the editor. Drag the corner handle to scale it.</div></div>
+      <div class="sec"><h4>LaTeX</h4><textarea class="code" readonly style="min-height:110px;font-size:12px" aria-label="LaTeX source of the diagram">${esc(lx.code)}</textarea>
+      <div class="tb"><button class="btn sm outline" data-i="dcopy">${icon('copy')}Copy LaTeX</button></div>
+      <div class="hint">Uses ${{ feynman: 'TikZ-Feynman', circuit: 'CircuiTikZ', quantum: 'quantikz' }[b.dia.type]}. <b>Export LaTeX source</b> adds the packages for you.</div></div>`;
   } else {
     h += `<div class="sec"><h4>Photo</h4><div class="row"><label for="opR">Opacity</label><input type="range" id="opR" min="0.15" max="1" step="0.05" value="${b.op ?? 1}"></div>
       <button class="btn outline" data-i="reconvert">${icon('scan')}Convert this photo to LaTeX</button></div>`;
@@ -803,9 +826,9 @@ function renderInspector(){
     <button class="btn sm outline" data-i="back">${icon('back')}Back</button>
     <button class="btn sm outline" data-i="dup">${icon('dup')}Duplicate</button>
     <button class="btn sm outline danger" data-i="del">${icon('trash')}Delete</button></div>
-    <div class="hint">Position <span style="font-family:var(--mono)">${b.x}, ${b.y}</span>${b.kind !== 'math' ? ` · width <span style="font-family:var(--mono)">${b.w}</span>` : ''} — drag the block, or nudge with arrow keys (<kbd>Shift</kbd> for bigger steps).</div></div>`;
+    <div class="hint">Position <span style="font-family:var(--mono)">${b.x}, ${b.y}</span>${b.kind !== 'math' && b.kind !== 'diagram' ? ` · width <span style="font-family:var(--mono)">${b.w}</span>` : ''} — drag the block, or nudge with arrow keys (<kbd>Shift</kbd> for bigger steps).</div></div>`;
   body.innerHTML = h;
-  if (b.kind !== 'image') buildEditor(b);
+  if (b.kind === 'text' || b.kind === 'math') buildEditor(b);
 }
 function styleSec(list){
   const one = list.length === 1 ? list[0] : null, k = one?.kind;
@@ -931,6 +954,8 @@ $('#insp').addEventListener('click', e => {
   if (a === 'unlock') { all(b => b.locked = false); return; }
   if (a === 'ok') { all(b => { b.unsure = false; delete b.note; }); renderInspector(); return; }
   if (a === 'draw') { openPad({ kind: 'replace', id: list[0].id }); return; }
+  if (a === 'dedit') { editDiagram(list[0]); return; }
+  if (a === 'dcopy') { const c = SD.latex(list[0].dia).code; navigator.clipboard?.writeText(c).then(() => toast('LaTeX copied'), () => showText('LaTeX', c, 'Copy the code below.')); return; }
   if (a === 'kbd') { try { const mf = document.querySelector('.mfmain'); mf.focus(); window.mathVirtualKeyboard.show(); } catch {} return; }
   if (a === 'reconvert') { const b = list[0]; openImport([dataURLtoFile(b.src, 'photo.jpg')], { keepPhoto: false, near: b }); return; }
   if (a === 'al') { const x = Math.min(...list.map(b => b.x)); all(b => b.x = x); return; }
@@ -988,6 +1013,7 @@ function helpMenu(){
     <span><kbd>T</kbd> <kbd>M</kbd></span><span>text / formula tool</span>
     <span><kbd>I</kbd></span><span>import a photo of notes</span>
     <span><kbd>P</kbd></span><span>handwrite a formula</span>
+    <span><kbd>D</kbd></span><span>draw a diagram</span>
     <span><kbd>Space</kbd>+drag</span><span>pan (or two-finger scroll)</span>
     <span><kbd>Ctrl</kbd>+wheel</span><span>zoom at cursor</span>
     <span><kbd>Shift</kbd>+click</span><span>add to selection</span>
@@ -1068,7 +1094,7 @@ $('#fileWs').addEventListener('change', async e => {
   try {
     const j = JSON.parse(await f.text()); const w = j.workspace || j;
     if (!Array.isArray(w.blocks)) throw 0;
-    w.blocks = w.blocks.filter(b => b && ['text', 'math', 'image'].includes(b.kind)).map(b => ({ ...b, id: b.id || uid(), x: +b.x || 0, y: +b.y || 0, content: b.content ?? '' }));
+    w.blocks = w.blocks.filter(b => b && (['text', 'math', 'image'].includes(b.kind) || (b.kind === 'diagram' && b.dia && b.dia.type))).map(b => ({ ...b, id: b.id || uid(), x: +b.x || 0, y: +b.y || 0, content: b.content ?? '' }));
     const nw = { ...newWorkspace(w.name || f.name.replace(/\.((symvolo|crux)\.)?json$/i, '')), ...w, id: uid(), updated: Date.now(), view: w.view || { x: 0, y: 0, z: 1 } };
     S.workspaces.push(nw); switchWs(nw.id); toast(`Opened “${nw.name}”`);
   } catch { toast('That file is not a Symvolo workspace'); }
@@ -1080,6 +1106,7 @@ function toMarkdown(){
   for (const b of bl) {
     if (b.kind === 'math') parts.push('$$\n' + b.content.trim() + '\n$$');
     else if (b.kind === 'text') { if (b.content.trim()) parts.push(b.content.trim()); }
+    else if (b.kind === 'diagram') { const lx = SD.latex(b.dia); parts.push(`<!-- ${SD.name(b.dia)} — LaTeX source, needs: ${SD.preamble(new Set([lx.pkg])).replace(/\n/g, ' ')} -->\n\`\`\`latex\n${lx.code}\n\`\`\``); }
     else parts.push('<!-- photo of the original notes -->');
   }
   return parts.join('\n\n') + '\n';
@@ -1541,6 +1568,7 @@ function buildDoc(){
   for (const b of readingOrder(W().blocks)) {
     endList();
     if (b.kind === 'image') { if (pdfOpt.photos) items.push({ t: 'fig', src: b.src }); continue; }
+    if (b.kind === 'diagram') { if (!SD.isEmpty(b.dia)) items.push({ t: 'dia', dia: b.dia }); continue; }
     if (b.kind === 'math') { if (b.content.trim()) items.push({ t: 'eq', tex: b.content.trim() }); continue; }
     const src = b.content || ''; let last = 0;
     for (const m of src.matchAll(/\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]/g)) { textPart(src.slice(last, m.index)); endList(); items.push({ t: 'eq', tex: (m[1] ?? m[2]).trim() }); last = m.index + m[0].length; }
@@ -1571,13 +1599,14 @@ function inlTex(s){
 }
 const ENV_RE = /\\begin\{(align|gather|multline|equation|flalign|alignat)\*?\}/;
 function toTex(){
-  const d = buildDoc(), num = pdfOpt.numEq, star = pdfOpt.numSec ? '' : '*';
+  const d = buildDoc(), num = pdfOpt.numEq, star = pdfOpt.numSec ? '' : '*', pkgs = new Set();
   const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const body = d.items.map(it => {
     if (it.t === 'sec') return `\\${['section', 'subsection', 'subsubsection'][it.level - 1]}${star}{${inlTex(it.text)}}`;
     if (it.t === 'p') return inlTex(it.text);
     if (it.t === 'list') { const e = it.ordered ? 'enumerate' : 'itemize'; return `\\begin{${e}}\n${it.items.map(x => '  \\item ' + inlTex(x)).join('\n')}\n\\end{${e}}`; }
     if (it.t === 'eq') { if (ENV_RE.test(it.tex)) return it.tex; const e = num ? 'equation' : 'equation*'; return `\\begin{${e}}\n  ${it.tex.replace(/\n/g, '\n  ')}\n\\end{${e}}`; }
+    if (it.t === 'dia') { const lx = SD.latex(it.dia); pkgs.add(lx.pkg); return `\\begin{center}\n${lx.code}\n\\end{center}`; }
     return '% [photo of the original notes — add \\includegraphics{...} here]';
   }).join('\n\n');
   return `% Created with Symvolo on ${date}
@@ -1589,7 +1618,7 @@ function toTex(){
 \\usepackage{amsmath,amssymb,mathtools}
 \\usepackage{parskip}
 \\usepackage{enumitem}
-\\usepackage{hyperref}
+\\usepackage{hyperref}${pkgs.size ? '\n' + SD.preamble(pkgs) : ''}
 
 \\title{${inlTex(docTitle(d))}}
 \\author{${inlTex(pdfOpt.author || '')}}
@@ -1622,6 +1651,7 @@ async function buildLatexPages(){
     else if (it.t === 'p') mk('lp', inlineHtml(it.text));
     else if (it.t === 'list') mk('llist', `<${it.ordered ? 'ol' : 'ul'}>${it.items.map(x => `<li>${inlineHtml(x)}</li>`).join('')}</${it.ordered ? 'ol' : 'ul'}>`);
     else if (it.t === 'eq') { const tagged = pdfOpt.numEq && !ENV_RE.test(it.tex) && !/\\tag\b|\\notag|\\nonumber/.test(it.tex); mk('leq', tex(tagged ? `${it.tex}\\tag{${++eqn}}` : it.tex, true)); }
+    else if (it.t === 'dia') mk('ldia', SD.html(it.dia, { ink: '#111111', bg: '#ffffff' }));
     else mk('lfig', `<img src="${it.src}" alt="">`);
   }
   const meas = mkPage(); lhost.append(meas); const mb = meas.firstChild; mb.style.height = 'auto';
@@ -1724,7 +1754,7 @@ stage.addEventListener('drop', e => { e.preventDefault(); const f = [...e.dataTr
 /* ---------- wiring ---------- */
 document.addEventListener('click', e => {
   const a = e.target.closest('[data-act]')?.dataset.act; if (!a) return;
-  if (a === 'import') openImport(); else if (a === 'pad') openPad({ kind: 'new' }); else if (a === 'add-math') createCentered('math'); else if (a === 'add-text') createCentered('text');
+  if (a === 'import') openImport(); else if (a === 'diagram') newDiagram(); else if (a === 'pad') openPad({ kind: 'new' }); else if (a === 'add-math') createCentered('math'); else if (a === 'add-text') createCentered('text');
 });
 document.querySelectorAll('.rail [data-tool]').forEach(b => b.onclick = () => setTool(b.dataset.tool));
 $('#snapBtn').onclick = toggleSnap;
@@ -1743,6 +1773,40 @@ wsName.oninput = () => { W().name = wsName.value || 'Untitled workspace'; W().up
 wsName.onkeydown = e => { if (e.key === 'Enter') wsName.blur(); };
 addEventListener('resize', () => { if (!$('#pop').hidden) closePop(); });
 
+/* ---------- diagrams (Feynman, circuits, quantum) ---------- */
+const SD = window.SymvoloDiagrams;
+SD.init({ tex, esc, icon, toast, loadMathLive });
+function newDiagram(){
+  closePop();
+  SD.open(null, { isNew: true, onDone: d => {
+    const r = stage.getBoundingClientRect(), p = toWorld(r.width * .36, r.height * .28);
+    const b = addBlock('diagram', p.x, p.y, '', { dia: d, size: 1.25 }); placeFree(b); commit(); setSel([b.id]); setTool('select'); ensureVisible(b);
+  } });
+}
+// move a new block to the nearest spot where it does not cover other blocks
+function placeFree(b){
+  const el = els.get(b.id); if (!el) return;
+  const w = el.offsetWidth, h = el.offsetHeight, x0 = b.x, y0 = b.y;
+  const rects = W().blocks.filter(o => o !== b).map(o => { const e = els.get(o.id); return e && { x0: o.x, y0: o.y, x1: o.x + e.offsetWidth, y1: o.y + e.offsetHeight }; }).filter(Boolean);
+  const free = (x, y) => !rects.some(q => x < q.x1 + G && x + w > q.x0 - G && y < q.y1 + G && y + h > q.y0 - G);
+  for (let ring = 0; ring < 40; ring++) {
+    const cand = [];
+    for (let dx = -ring; dx <= ring; dx++) for (let dy = -ring; dy <= ring; dy++) if (Math.max(Math.abs(dx), Math.abs(dy)) === ring) cand.push([dx, dy]);
+    cand.sort((a, c) => Math.hypot(a[0], a[1] * 1.4) - Math.hypot(c[0], c[1] * 1.4));
+    for (const [dx, dy] of cand) { const x = snapV(x0 + dx * G * 2), y = snapV(y0 + dy * G * 2); if (free(x, y)) { b.x = x; b.y = y; drawBlock(b); return; } }
+  }
+}
+function ensureVisible(b){
+  const el = els.get(b.id); if (!el) return;
+  const v = W().view, sx = b.x * v.z + v.x, sy = b.y * v.z + v.y, sw = el.offsetWidth * v.z, sh = el.offsetHeight * v.z;
+  const insp = innerWidth >= 760 ? 360 : 0;
+  if (sx < 70 || sy < 70 || sx + sw > innerWidth - insp - 20 || sy + sh > innerHeight - 70) { v.x = (innerWidth - insp) / 2 - (b.x + el.offsetWidth / 2) * v.z; v.y = innerHeight / 2 - (b.y + el.offsetHeight / 2) * v.z; viewChanged(); }
+}
+function editDiagram(b){
+  if (!b || b.kind !== 'diagram') return;
+  SD.open(b.dia, { onDone: d => { const cur = blk(b.id); if (!cur) return; cur.dia = d; drawBlock(cur); commit(); renderInspector(); } });
+}
+
 /* ---------- landing ---------- */
 function startApp(){
   const l = $('#landing'); if (l.classList.contains('out')) return;
@@ -1750,17 +1814,19 @@ function startApp(){
   setTimeout(() => { if (l.classList.contains('out')) l.hidden = true; }, 380);
   stage.focus?.();
 }
-function showLanding(){ const l = $('#landing'); l.hidden = false; requestAnimationFrame(() => { l.classList.remove('out'); document.body.classList.add('landing'); $('#startBtn').focus(); }); closePop(); }
+function showLanding(){ const l = $('#landing'); l.hidden = false; landDiagram(); requestAnimationFrame(() => { l.classList.remove('out'); document.body.classList.add('landing'); $('#startBtn').focus(); }); closePop(); }
 $('#startBtn').onclick = startApp;
 $('#landOpen').onclick = () => { startApp(); $('#fileWs').click(); };
 $('#landSrc').href = SOURCE_URL;
 document.querySelectorAll('#landing [data-tex]').forEach(el => { el.innerHTML = tex(el.dataset.tex, false); });
+function landDiagram(){ const box = $('#landDia'); if (!box) return; const cs = getComputedStyle(root); box.innerHTML = SD.html(SD.examples.feynman[0][1](), { ink: cs.getPropertyValue('--fg').trim() || '#14161b', bg: cs.getPropertyValue('--panel-2').trim() || '#f4f5f7' }); }
 
 /* ---------- start ---------- */
 $('#snapBtn').setAttribute('aria-pressed', !!S.snap);
 setTool('select');
 wsName.value = W().name; document.title = W().name + ' — Symvolo';
-applySurface(); renderAll(); resetHistory();
+applySurface(); renderAll(); resetHistory(); landDiagram();
+document.fonts?.ready.then(landDiagram);
 const v0 = W().view; if (W().blocks.length && v0.x === 0 && v0.y === 0 && v0.z === 1) requestAnimationFrame(() => fit());
 document.fonts?.ready.then(() => { for (const el of els.values()) el._key = null; W().blocks.forEach(drawBlock); });
 setTimeout(loadMathLive, 1200);
