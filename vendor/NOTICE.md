@@ -24,3 +24,14 @@ Symvolo as a whole is licensed under the GNU AGPL-3.0 (see `/LICENSE`), because 
 2. `ort.env.wasm.numThreads` is set to 1 unless the page is cross-origin isolated, where browsers allow WebAssembly threads (at most 4).
 
 Source maps were removed from the vendored files.
+
+
+## PDF text export (`vendor/pdf/`)
+
+| Component | Version | Licence | Notes |
+|---|---|---|---|
+| svg2pdf.js (`svg2pdf.umd.min.js`) | 2.2.4 | MIT | unmodified |
+| KaTeX fonts (`fonts/KaTeX_*.ttf`) | 0.16.22 | MIT (`fonts/KaTeX-LICENSE.txt`) | TrueType versions of the fonts KaTeX already uses, embedded in exported PDFs |
+| CMU Serif (`fonts/CMUSerif-*`) | from npm `computer-modern` 0.1.3 | SIL OFL 1.1 (`fonts/CMU-OFL.txt`) | subset with fontTools to Latin, Greek, Cyrillic and common punctuation |
+
+`coverage.json` lists which characters each font contains, so the exporter loads only the fonts a document needs.
