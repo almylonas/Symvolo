@@ -1,6 +1,6 @@
 # Symvolo
 
-*σύμβολο — symbol.* **A versatile editor for mathematical notes, with LaTeX as its engine.** Write prose and formulas, draw Feynman diagrams, electrical circuits and quantum circuits, place every block freely on a cross-grid workspace, edit formulas visually or as LaTeX source, and export to Markdown, PDF or a compilable `.tex` document. Notes can also be brought in from photos of boards and pages, or drawn by hand. That recognition is in **beta**.
+*σύμβολο — symbol.* **A versatile editor for mathematical notes, with LaTeX as its engine.** Write prose and formulas, draw Feynman diagrams, electrical circuits and quantum circuits, place every block freely on a cross-grid workspace, edit formulas visually or as LaTeX source, and export to Markdown, PDF or a compilable LaTeX project. Notes can also be brought in from photos of boards and pages, or drawn by hand. That recognition is in **beta**.
 
 ## Features
 
@@ -10,7 +10,7 @@
   - **Feynman diagrams.** Pick a line (fermion, antifermion, photon, gluon, W boson, scalar, charged scalar, ghost, plain) and drag from point to point; lines join at shared points. Curve a line by dragging its handle, add labels and momentum arrows, and give vertices a dot, blob, crossed dot or ring.
   - **Electrical circuits.** Resistor, capacitor, inductor, voltage and current source, battery, diode, LED, switch, lamp, ammeter, voltmeter, wires (they turn right angles for you), ground, junctions and terminals. Drag between crosses or drop from the list. Connected parts stretch along when you move one, and junction dots appear by themselves. American or European symbols.
   - **Quantum circuits.** Drop gates (H, X, Y, Z, S, T, S†, T†, rotations, phase, custom and multi-qubit gates), controls, open controls, targets, swaps, measurements and barriers onto qubit wires. Controls connect to their column automatically; wires turn classical after a measurement.
-  - Every diagram exports as real LaTeX — **TikZ-Feynman**, **CircuiTikZ** or **quantikz** — inside the `.tex` export, with the packages added to the preamble. The inspector and the editor's **LaTeX** button show the code to copy. In Markdown, diagrams become a `latex` code block. Each editor has examples to start from.
+  - Every diagram exports as real LaTeX — **TikZ-Feynman**, **CircuiTikZ** or **quantikz** — inside the LaTeX export, with the packages added to the preamble. The inspector and the editor's **LaTeX** button show the code to copy. In Markdown, diagrams become a `latex` code block. Each editor has examples to start from.
 - **Cross-grid workspace.** Full-screen canvas of small crosses. Pan, zoom to the cursor, fit to screen, and snap blocks to the crosses (toggle with `G`).
 - **Free layout.** Drag, resize, multi-select (marquee or `Shift`+click), line up left or top edges, space blocks evenly, layer order, lock, duplicate, nudge with the arrow keys. Each block has its own size, ink colour and background (none, card or highlight).
 - **Workspaces.** Create, rename, duplicate, delete and switch between them. Choose a workspace colour from 7 presets or any custom colour; the interface turns dark on dark colours. Note lettering can be the LaTeX serif or a sans.
@@ -18,13 +18,13 @@
   - **Save workspace** (`.symvolo.json`): reopens with every position, size and colour. `Ctrl+S`.
   - **Markdown** (`.md`): text with `$…$` and `$$…$$`, in reading order.
   - **PDF, as on screen**: the workspace with its colours, cut into A4 pages.
-  - **PDF, LaTeX document**: typeset as an article in Computer Modern, with a title, author, date, numbered sections and equations and a live page preview.
-  - **LaTeX source** (`.tex`): the same document as compilable LaTeX (`article`, `amsmath`, plus `tikz-feynman`, `circuitikz` or `quantikz` when the workspace has diagrams). It compiles with `pdflatex` or in Overleaf. TikZ-Feynman prints a few harmless warnings under `pdflatex` because its automatic layout needs LuaLaTeX; Symvolo places every vertex itself, so it does not need it.
+  - **PDF, LaTeX document**: typeset as an article in Computer Modern, with a title, author, date, numbered sections and equations and a live page preview. Text is real, selectable and searchable; formulas and diagrams are vector graphics.
+  - **LaTeX project** (`.zip`): `main.tex` with the same document as compilable LaTeX (`article`, `amsmath`, plus `tikz-feynman`, `circuitikz` or `quantikz` when the workspace has diagrams, and `graphicx` when it has photos), and a `figures/` folder with every photo as a JPEG or PNG, placed with `\includegraphics`. Upload the zip to Overleaf (**New Project → Upload Project**) or unzip it and run `pdflatex main.tex`. TikZ-Feynman prints a few harmless warnings under `pdflatex` because its automatic layout needs LuaLaTeX; Symvolo places every vertex itself, so it does not need it.
 - **Photos → LaTeX (beta).** Drop, choose or paste photos of handwritten or printed notes, handouts, whiteboards or chalkboards (up to 5 at once). They become text and formula blocks laid out like the original. An **offline pipeline** reads them in the browser: it finds the lines, reads the text, tells formulas from prose and turns the formulas into LaTeX. Anything doubtful is outlined in orange. Select a block to see the part of the photo it came from, right above its editor, and switch a block between text and formula with one click if it was classified wrongly. You can keep the photo next to the notes.
 - **Handwriting → LaTeX (beta), on your device.** Draw a symbol or an equation with a mouse, pen or finger (`P`). A small neural network (CoMER, 7 MB) reads it **in the browser, offline**, while you draw. No image leaves your machine. You get a live preview and editable LaTeX, then add it to the workspace. From the inspector you can also draw a replacement for a formula, or draw a formula into the middle of a sentence. Claude can be switched on as a more accurate engine (with up to three alternative readings).
 - Undo/redo, autosave in the browser, paste an image anywhere to convert it, and a keyboard shortcut for nearly everything (`?` button in the app).
 
-> **About the LaTeX PDF.** It is typeset in the browser with KaTeX and the Computer Modern fonts, so it looks like LaTeX output but is not produced by a TeX engine, and its text is an image. For a true pdflatex document, export the `.tex` file and compile it.
+> **About the LaTeX PDF.** It is typeset in the browser with KaTeX and written by `js/pdftext.js` as a real PDF: every word is selectable, searchable text in the embedded Computer Modern fonts (KaTeX's fonts, with CMU Serif for accented letters, Greek and Cyrillic), fraction bars, root signs and diagrams are vector graphics, and only photos are images. A two-page document is typically under 100 KB. It is laid out by the browser rather than by a TeX engine, so line breaking and spacing are KaTeX's, not pdflatex's. For a true pdflatex document, export the LaTeX project and compile it.
 
 ## How recognition works (beta)
 
@@ -107,6 +107,8 @@ Without a key, `npx serve .` (or any static server) runs the whole app, includin
 ```
 index.html          the whole app (UI, canvas, editor, exports)
 js/diagrams.js      Feynman, circuit and quantum-circuit editors, SVG rendering and TikZ export
+js/pdftext.js       writes the LaTeX-style pages as a PDF with real text, vector maths and diagrams
+vendor/pdf/         KaTeX and CMU Serif TrueType fonts for the PDF, their coverage table, svg2pdf.js
 prompts.js          prompts for photo import and handwriting, shared by browser and server
 api/recognize.js    POST: images → Claude → streamed text (Vercel function)
 api/health.js       GET: is recognition configured? is an access code required?
@@ -204,6 +206,8 @@ All bundled in `vendor/`. Details and patch notes are in [`vendor/NOTICE.md`](ve
 - [KaTeX](https://katex.org) 0.16.22 (MIT): rendering, plus the Computer Modern–style fonts
 - [MathLive](https://cortexjs.io/mathlive/) 0.111.1 (MIT): direct formula editing
 - [html2canvas](https://html2canvas.hertzen.com) 1.4.1 and [jsPDF](https://github.com/parallax/jsPDF) 2.5.2 (MIT): PDF export
+- [svg2pdf.js](https://github.com/yWorks/svg2pdf.js) 2.2.4 (MIT): vector SVG in the LaTeX PDF
+- [CMU Serif](https://www.ctan.org/pkg/cm-unicode) (Computer Modern Unicode, SIL OFL), subset to Latin, Greek and Cyrillic: accented and non-Latin text in the LaTeX PDF and its preview
 - [ONNX Runtime Web](https://onnxruntime.ai) 1.24.3 (MIT): runs the recognition model
 - [ink-on](https://github.com/kimseungdae/ink-on) 0.1.0 and its CoMER model (Apache-2.0): on-device handwriting recognition
 - [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) PP-OCRv5 mobile models (Apache-2.0): on-device text detection and recognition
