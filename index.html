@@ -233,8 +233,13 @@ input[type=range]{accent-color:var(--accent);flex:1}
 .pv .lpage{transform:scale(.2796);transform-origin:0 0}
 .pvn{align-self:center;color:var(--subtle);font-size:13px;white-space:nowrap;padding:0 6px}
 /* typeset LaTeX pages (always white paper) */
+@font-face{font-family:"CMU Serif";src:url(vendor/pdf/fonts/CMUSerif-Regular.woff2) format("woff2");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"CMU Serif";src:url(vendor/pdf/fonts/CMUSerif-Bold.woff2) format("woff2");font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:"CMU Serif";src:url(vendor/pdf/fonts/CMUSerif-Italic.woff2) format("woff2");font-weight:400;font-style:italic;font-display:swap}
+@font-face{font-family:"CMU Serif";src:url(vendor/pdf/fonts/CMUSerif-BoldItalic.woff2) format("woff2");font-weight:700;font-style:italic;font-display:swap}
 .lhost{position:absolute;left:0;top:0;z-index:-6;pointer-events:none}
-.lpage{width:794px;height:1123px;background:#fff;color:#111;position:relative;padding:100px 104px 0;font:15.5px/1.45 KaTeX_Main,"Latin Modern Roman","Times New Roman",serif;overflow:hidden;color-scheme:light}
+.lpage{width:794px;height:1123px;background:#fff;color:#111;position:relative;padding:100px 104px 0;font:15.5px/1.45 KaTeX_Main,"CMU Serif","Latin Modern Roman","Times New Roman",serif;overflow:hidden;color-scheme:light}
+.lpage .katex .mathrm,.lpage .katex .textrm,.lpage .katex .mathit,.lpage .katex .textit{font-family:KaTeX_Main,"CMU Serif",serif}
 .lbody{height:913px;overflow:hidden}
 .lfoot{position:absolute;bottom:58px;left:0;right:0;text-align:center;font-size:15px}
 .lit{padding-bottom:9px}
@@ -248,10 +253,11 @@ input[type=range]{accent-color:var(--accent);flex:1}
 .lnum{display:inline-block;margin-right:1em}
 .lp{text-align:justify}
 .leq{padding:4px 0 14px}.leq .katex-display{margin:0}
-.llist ul,.llist ol{margin:0;padding-left:28px}.llist li{margin:0 0 3px}
+.llist ul,.llist ol{margin:0;padding-left:28px;list-style:none}.llist li{margin:0 0 3px;position:relative}
+.llist .lm{position:absolute;right:calc(100% + .55em);top:0;white-space:nowrap}
 .lfig img{display:block;max-width:72%;max-height:440px;margin:4px auto 6px;border:1px solid #ddd}
 .ldia{display:flex;justify-content:center;font-size:17px;padding:6px 0 16px}
-.lpage code{font-family:"Courier New",monospace;font-size:.92em}
+.lpage code{font-family:KaTeX_Typewriter,"Courier New",monospace;font-size:.92em}
 .lpage mark{background:none;font-style:italic}
 
 /* landing: a mask over the live workspace, typeset like a LaTeX document */
@@ -814,7 +820,7 @@ function renderInspector(){
       <div class="hint">Double-click the diagram to open the editor. Drag the corner handle to scale it.</div></div>
       <div class="sec"><h4>LaTeX</h4><textarea class="code" readonly style="min-height:110px;font-size:12px" aria-label="LaTeX source of the diagram">${esc(lx.code)}</textarea>
       <div class="tb"><button class="btn sm outline" data-i="dcopy">${icon('copy')}Copy LaTeX</button></div>
-      <div class="hint">Uses ${{ feynman: 'TikZ-Feynman', circuit: 'CircuiTikZ', quantum: 'quantikz' }[b.dia.type]}. <b>Export LaTeX source</b> adds the packages for you.</div></div>`;
+      <div class="hint">Uses ${{ feynman: 'TikZ-Feynman', circuit: 'CircuiTikZ', quantum: 'quantikz' }[b.dia.type]}. <b>Export LaTeX project</b> adds the packages for you.</div></div>`;
   } else {
     h += `<div class="sec"><h4>Photo</h4><div class="row"><label for="opR">Opacity</label><input type="range" id="opR" min="0.15" max="1" step="0.05" value="${b.op ?? 1}"></div>
       <button class="btn outline" data-i="reconvert">${icon('scan')}Convert this photo to LaTeX</button></div>`;
@@ -995,7 +1001,7 @@ function saveMenu(){
     <button class="mi" data-m="savews">${icon('save')}<span>Save workspace<small>.json — reopens here with every position, size and colour</small></span></button>
     <button class="mi" data-m="md">${icon('md')}<span>Export Markdown<small>.md — text with $LaTeX$, in reading order</small></span></button>
     <button class="mi" data-m="pdf">${icon('pdf')}<span>Export PDF…<small>As on screen, or typeset as a LaTeX document</small></span></button>
-    <button class="mi" data-m="tex">${icon('tex')}<span>Export LaTeX source<small>.tex — compiles with pdflatex or in Overleaf</small></span></button>
+    <button class="mi" data-m="tex">${icon('tex')}<span>Export LaTeX project<small>.zip with main.tex and photos — upload to Overleaf or run pdflatex</small></span></button>
     <hr><button class="mi" data-m="copymd">${icon('copy')}<span>Copy as Markdown</span></button>
     <button class="mi" data-m="open">${icon('open')}<span>Open a saved workspace…</span></button>`, 'right');
 }
@@ -1557,7 +1563,7 @@ function padInsert(){
 }
 
 /* ---------- LaTeX document: model, .tex source, typeset pages ---------- */
-function buildDoc(){
+function buildDoc(opt = {}){
   const items = []; let list = null;
   const endList = () => { list = null; };
   const textPart = s => { for (const raw of s.split('\n')) { const l = raw.trim(); let m;
@@ -1567,7 +1573,7 @@ function buildDoc(){
     else { endList(); items.push({ t: 'p', text: l }); } } };
   for (const b of readingOrder(W().blocks)) {
     endList();
-    if (b.kind === 'image') { if (pdfOpt.photos) items.push({ t: 'fig', src: b.src }); continue; }
+    if (b.kind === 'image') { if (opt.photos ?? pdfOpt.photos) items.push({ t: 'fig', src: b.src }); continue; }
     if (b.kind === 'diagram') { if (!SD.isEmpty(b.dia)) items.push({ t: 'dia', dia: b.dia }); continue; }
     if (b.kind === 'math') { if (b.content.trim()) items.push({ t: 'eq', tex: b.content.trim() }); continue; }
     const src = b.content || ''; let last = 0;
@@ -1584,40 +1590,52 @@ function buildDoc(){
 const docTitle = d => (W().docTitle ?? '').trim() || d.autoTitle;
 const UNI = { '≈': '\\approx', '≤': '\\le', '≥': '\\ge', '≠': '\\neq', '→': '\\to', '←': '\\leftarrow', '⇒': '\\Rightarrow', '⇔': '\\Leftrightarrow', '∞': '\\infty', '±': '\\pm', '×': '\\times', '·': '\\cdot', '…': '\\dots', '∈': '\\in', '∀': '\\forall', '∃': '\\exists', '∑': '\\sum', '∫': '\\int', '∂': '\\partial', '∇': '\\nabla', 'α': '\\alpha', 'β': '\\beta', 'γ': '\\gamma', 'δ': '\\delta', 'ε': '\\varepsilon', 'θ': '\\theta', 'λ': '\\lambda', 'μ': '\\mu', 'π': '\\pi', 'σ': '\\sigma', 'φ': '\\varphi', 'ω': '\\omega', 'Δ': '\\Delta', 'Σ': '\\Sigma', 'Ω': '\\Omega' };
 const UNI_RE = new RegExp('[' + Object.keys(UNI).join('') + ']', 'g');
-const texText = s => s.replace(/[\\{}#$%&_^~]/g, c => ({ '\\': '\\textbackslash{}', '{': '\\{', '}': '\\}', '#': '\\#', '$': '\\$', '%': '\\%', '&': '\\&', '_': '\\_', '^': '\\^{}', '~': '\\~{}' })[c]).replace(UNI_RE, c => `$${UNI[c]}$`);
+const texText = s => s.replace(/[\\{}#$%&_^~]/g, c => ({ '\\': '\\textbackslash{}', '{': '\\{', '}': '\\}', '#': '\\#', '$': '\\$', '%': '\\%', '&': '\\&', '_': '\\_', '^': '\\^{}', '~': '\\~{}' })[c]).replace(UNI_RE, (c, i, str) => /[\u0370-\u03FF]/.test(c) && /\p{L}/u.test((str[i - 1] || '') + (str[i + 1] || '')) ? c : `$${UNI[c]}$`);   // Greek words stay text (alphabeta), lone symbols become maths
+// Cyrillic prose needs the T2A encoding under pdflatex; Greek is switched automatically by alphabeta
+const cyr = t => t.replace(/[\u0400-\u04FF]+(?:[\s-]+[\u0400-\u04FF]+)*/g, m => `{\\fontencoding{T2A}\\selectfont ${m}}`);
 function inlTex(s){
+  const texText2 = x => cyr(texText(x));
   let out = '', last = 0;
   for (const m of s.matchAll(/\$([^$\n]+?)\$|\\\((.+?)\\\)|`([^`]+)`|\*\*(.+?)\*\*|==(.+?)==|\*([^*\s][^*]*?)\*/g)) {
-    out += texText(s.slice(last, m.index));
+    out += texText2(s.slice(last, m.index));
     if (m[1] != null || m[2] != null) out += `$${(m[1] ?? m[2]).trim()}$`;
-    else if (m[3] != null) out += `\\texttt{${texText(m[3])}}`;
+    else if (m[3] != null) out += `\\texttt{${texText2(m[3])}}`;
     else if (m[4] != null) out += `\\textbf{${inlTex(m[4])}}`;
     else out += `\\emph{${inlTex(m[5] ?? m[6])}}`;
     last = m.index + m[0].length;
   }
-  return out + texText(s.slice(last));
+  return out + texText2(s.slice(last));
 }
 const ENV_RE = /\\begin\{(align|gather|multline|equation|flalign|alignat)\*?\}/;
-function toTex(){
-  const d = buildDoc(), num = pdfOpt.numEq, star = pdfOpt.numSec ? '' : '*', pkgs = new Set();
+function toTex(figs = null){
+  const d = buildDoc({ photos: !!figs }), num = pdfOpt.numEq, star = pdfOpt.numSec ? '' : '*', pkgs = new Set();
   const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-  const body = d.items.map(it => {
+  let fi = 0;
+  const body0 = d.items.map(it => {
     if (it.t === 'sec') return `\\${['section', 'subsection', 'subsubsection'][it.level - 1]}${star}{${inlTex(it.text)}}`;
     if (it.t === 'p') return inlTex(it.text);
     if (it.t === 'list') { const e = it.ordered ? 'enumerate' : 'itemize'; return `\\begin{${e}}\n${it.items.map(x => '  \\item ' + inlTex(x)).join('\n')}\n\\end{${e}}`; }
     if (it.t === 'eq') { if (ENV_RE.test(it.tex)) return it.tex; const e = num ? 'equation' : 'equation*'; return `\\begin{${e}}\n  ${it.tex.replace(/\n/g, '\n  ')}\n\\end{${e}}`; }
     if (it.t === 'dia') { const lx = SD.latex(it.dia); pkgs.add(lx.pkg); return `\\begin{center}\n${lx.code}\n\\end{center}`; }
+    if (it.t === 'fig' && figs) { const f = figs[fi++]; return `\\begin{figure}[htbp]\n  \\centering\n  \\includegraphics[width=0.8\\linewidth]{${f}}\n\\end{figure}`; }
     return '% [photo of the original notes — add \\includegraphics{...} here]';
   }).join('\n\n');
+  // KaTeX takes CSS colours (#c0392b); xcolor wants \textcolor[HTML]{C0392B}
+  const hex = h => (h.length === 3 ? [...h].map(c => c + c).join('') : h).toUpperCase();
+  const body = body0.replace(/\\(textcolor|color|colorbox)\{#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\}/g, (m, cmd, h) => `\\${cmd}[HTML]{${hex(h)}}`)
+    .replace(/\\fcolorbox\{#([0-9a-fA-F]{3,6})\}\{#([0-9a-fA-F]{3,6})\}/g, (m, a, b) => `\\fcolorbox[HTML]{${hex(a)}}{${hex(b)}}`);
+  const colors = /\\(textcolor|color|colorbox|fcolorbox)\b/.test(body);
+  const all = body + docTitle(d) + (pdfOpt.author || ''), greek = /[\u0370-\u03FF\u1F00-\u1FFF]/.test(all), cyrl = /[\u0400-\u04FF]/.test(all);
+  const enc = [cyrl && 'T2A', greek && 'LGR', 'T1'].filter(Boolean).join(',');
   return `% Created with Symvolo on ${date}
 \\documentclass[11pt,a4paper]{article}
-\\usepackage[T1]{fontenc}
-\\usepackage[utf8]{inputenc}
+\\usepackage[${enc}]{fontenc}
+\\usepackage[utf8]{inputenc}${greek ? '\n\\usepackage{alphabeta} % Greek letters in text' : ''}
 \\usepackage{lmodern}
 \\usepackage[margin=2.5cm]{geometry}
 \\usepackage{amsmath,amssymb,mathtools}
 \\usepackage{parskip}
-\\usepackage{enumitem}
+\\usepackage{enumitem}${colors ? '\n\\usepackage{xcolor}' : ''}${figs?.length ? '\n\\usepackage{graphicx}' : ''}
 \\usepackage{hyperref}${pkgs.size ? '\n' + SD.preamble(pkgs) : ''}
 
 \\title{${inlTex(docTitle(d))}}
@@ -1632,7 +1650,42 @@ ${body}
 \\end{document}
 `;
 }
-function exportTex(){ commit(); if (!W().blocks.length) return toast('Nothing to export yet'); saveFile(slug(W().name) + '.tex', toTex(), 'application/x-tex', true); }
+/* LaTeX project: main.tex plus the photos in figures/, as one zip that Overleaf can upload as a project */
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = u8 => { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+function makeZip(files){       // stored (uncompressed) zip: photos are already compressed and the .tex is small
+  const enc = new TextEncoder(), parts = [], dir = []; let off = 0;
+  const now = new Date(), time = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1), date = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+  for (const f of files) {
+    const name = enc.encode(f.name), data = typeof f.data === 'string' ? enc.encode(f.data) : f.data, crc = crc32(data);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true); h.setUint16(10, time, true); h.setUint16(12, date, true);
+    h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true); h.setUint16(28, 0, true);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true); c.setUint16(12, time, true); c.setUint16(14, date, true);
+    c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, name.length, true); c.setUint32(42, off, true);
+    parts.push(h, name, data); dir.push(c, name); off += 30 + name.length + data.length;
+  }
+  const dirLen = dir.reduce((n, x) => n + (x.byteLength ?? x.length), 0), end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true); end.setUint32(12, dirLen, true); end.setUint32(16, off, true);
+  return new Blob([...parts, ...dir, end], { type: 'application/zip' });
+}
+async function photoBytes(src){
+  const m = /^data:image\/(jpeg|jpg|png);base64,(.*)$/i.exec(src);
+  if (m) { const bin = atob(m[2]), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); return { ext: /png/i.test(m[1]) ? 'png' : 'jpg', data: u8 }; }
+  const img = new Image(); img.src = src; await img.decode();          // other formats → JPEG, which pdflatex reads
+  const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0);
+  const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', .92));
+  return { ext: 'jpg', data: new Uint8Array(await blob.arrayBuffer()) };
+}
+async function exportTex(){
+  commit(); if (!W().blocks.length) return toast('Nothing to export yet');
+  const figs = buildDoc({ photos: true }).items.filter(it => it.t === 'fig'), files = [], names = [];
+  for (let i = 0; i < figs.length; i++) { try { const p = await photoBytes(figs[i].src), n = `figures/photo-${i + 1}.${p.ext}`; names.push(n); files.push({ name: n, data: p.data }); } catch { names.push(`figures/photo-${i + 1}.jpg`); } }
+  files.unshift({ name: 'main.tex', data: toTex(names) });
+  saveFile(slug(W().name) + '.zip', makeZip(files), 'application/zip');
+}
 function inlineHtml(s){
   const math = [];
   const t = s.replace(/\$([^$\n]+?)\$|\\\((.+?)\\\)/g, (m, a, b) => { math.push(tex(a ?? b, false)); return `\u0000${math.length - 1}\u0000`; });
@@ -1649,7 +1702,7 @@ async function buildLatexPages(){
   for (const it of d.items) {
     if (it.t === 'sec') { sc[it.level - 1]++; for (let i = it.level; i < 3; i++) sc[i] = 0; const n = sc.slice(0, it.level).join('.'); mk(`lsec lsec${it.level}`, `${pdfOpt.numSec ? `<span class="lnum">${n}</span>` : ''}${inlineHtml(it.text)}`); }
     else if (it.t === 'p') mk('lp', inlineHtml(it.text));
-    else if (it.t === 'list') mk('llist', `<${it.ordered ? 'ol' : 'ul'}>${it.items.map(x => `<li>${inlineHtml(x)}</li>`).join('')}</${it.ordered ? 'ol' : 'ul'}>`);
+    else if (it.t === 'list') mk('llist', `<${it.ordered ? 'ol' : 'ul'}>${it.items.map((x, i) => `<li><span class="lm">${it.ordered ? (i + 1) + '.' : '\u2219'}</span>${inlineHtml(x)}</li>`).join('')}</${it.ordered ? 'ol' : 'ul'}>`);
     else if (it.t === 'eq') { const tagged = pdfOpt.numEq && !ENV_RE.test(it.tex) && !/\\tag\b|\\notag|\\nonumber/.test(it.tex); mk('leq', tex(tagged ? `${it.tex}\\tag{${++eqn}}` : it.tex, true)); }
     else if (it.t === 'dia') mk('ldia', SD.html(it.dia, { ink: '#111111', bg: '#ffffff' }));
     else mk('lfig', `<img src="${it.src}" alt="">`);
@@ -1682,7 +1735,7 @@ function openPdfDialog(){
   openModal(`<div class="mh"><h2 class="grow">Export PDF</h2><button class="ibtn" data-x aria-label="Close">${icon('x')}</button></div>
     <div class="modes">
       <button class="modecard" data-mode="screen" aria-pressed="${!L}">${icon('screen')}<span><b>As on screen</b><small>Your workspace with its colours and layout, cut into A4 pages.</small></span></button>
-      <button class="modecard" data-mode="latex" aria-pressed="${L}">${icon('tex')}<span><b>LaTeX document</b><small>Typeset as an article: title, numbered sections and equations, Computer Modern type, in reading order.</small></span></button>
+      <button class="modecard" data-mode="latex" aria-pressed="${L}">${icon('tex')}<span><b>LaTeX document</b><small>Typeset as an article in Computer Modern: title, numbered sections and equations. Real, selectable text; formulas and diagrams stay sharp at any zoom.</small></span></button>
     </div>
     <div id="lxOpts" class="opts" ${L ? '' : 'hidden'}>
       <div class="two"><input class="field" id="lxTitle" placeholder="Title" value="${esc(docTitle(d))}" aria-label="Title"><input class="field" id="lxAuthor" placeholder="Author (optional)" value="${esc(pdfOpt.author)}" aria-label="Author"></div>
@@ -1691,9 +1744,9 @@ function openPdfDialog(){
         <label class="check"><input type="checkbox" data-o="numEq" ${pdfOpt.numEq ? 'checked' : ''}>Number equations</label>
         <label class="check"><input type="checkbox" data-o="photos" ${pdfOpt.photos ? 'checked' : ''}>Include photos</label></div>
       <div class="lprev" id="lxPrev"><div class="loading">Typesetting the preview…</div></div>
-      <div class="hint">Blocks are read top to bottom, left to right. Headings become sections, formula blocks become equations. Need it compiled by real LaTeX? Use <b>Download .tex</b> and open it in Overleaf.</div>
+      <div class="hint">Blocks are read top to bottom, left to right. Headings become sections, formula blocks become equations. Need it compiled by real LaTeX? Use <b>LaTeX project</b> and upload the zip to Overleaf (New Project → Upload Project).</div>
     </div>
-    <div class="mf"><button class="btn outline" data-x>Cancel</button>${L ? `<button class="btn outline" data-tex>${icon('tex')}Download .tex</button>` : ''}<button class="btn primary" data-go>${icon('pdf')}Export PDF</button></div>`, 'pdf', true);
+    <div class="mf"><button class="btn outline" data-x>Cancel</button>${L ? `<button class="btn outline" data-tex>${icon('tex')}LaTeX project (.zip)</button>` : ''}<button class="btn primary" data-go>${icon('pdf')}Export PDF</button></div>`, 'pdf', true);
   const m = $('#modal');
   m.onclick = e => {
     const t = e.target.closest('button'); if (!t) return;
@@ -1719,21 +1772,12 @@ async function renderPreview(){
 async function exportLatexPDF(btn){
   btn.disabled = true; const label = btn.innerHTML; btn.innerHTML = '<span class="spin" style="width:16px;height:16px;border-width:2px;border-top-color:currentColor"></span>Typesetting…';
   try {
-    if (!window.html2canvas) await loadScript('vendor/html2canvas.min.js');
-    if (!window.jspdf) await loadScript('vendor/jspdf.umd.min.js');
-    if (!window.html2canvas || !window.jspdf) { toast('The PDF tools could not load'); return; }
-    const pages = await buildLatexPages(); const shot = document.createElement('div'); shot.className = 'lhost'; document.body.append(shot);
-    const { jsPDF } = window.jspdf, pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4', compress: true });
-    const PW = pdf.internal.pageSize.getWidth(), PH = pdf.internal.pageSize.getHeight();
-    for (let i = 0; i < pages.length; i++) {
-      shot.replaceChildren(pages[i]);
-      const c = await html2canvas(pages[i], { scale: 2.6, backgroundColor: '#ffffff', logging: false, width: 794, height: 1123, windowWidth: Math.max(innerWidth, 900), windowHeight: Math.max(innerHeight, 1200) });
-      if (i) pdf.addPage();
-      pdf.addImage(c.toDataURL('image/jpeg', .93), 'JPEG', 0, 0, PW, PH);
-    }
-    shot.remove();
-    pdf.setProperties({ title: docTitle(buildDoc()), author: pdfOpt.author || '', creator: 'Symvolo' });
-    const blob = pdf.output('blob'); closeModal();
+    if (!window.SymvoloPDF) await loadScript('js/pdftext.js');
+    if (!window.SymvoloPDF) { toast('The PDF tools could not load'); return; }
+    const pages = await buildLatexPages();
+    await document.fonts.ready;
+    const blob = await SymvoloPDF.render(pages, { title: docTitle(buildDoc()), author: pdfOpt.author || '' });
+    lhost?.remove(); lhost = null; closeModal();
     await saveFile(slug(W().name) + '.pdf', blob, 'application/pdf');
   } catch (e) { console.error(e); toast('Could not build the PDF'); }
   finally { if (document.body.contains(btn)) { btn.disabled = false; btn.innerHTML = label; } }
